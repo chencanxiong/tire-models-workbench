@@ -15,9 +15,10 @@ const CONFIG = {
 
 const API = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}`;
 
-// 写操作凭据（内嵌于 config.js，无需管理员手动粘贴）。
-// 管理员身份由 ADMIN_PASSWORD 在界面上解锁（仅门禁，非真鉴权）。
+// 写操作凭据：优先走后端代理(PROXY_URL)，由代理注入 Token（客户端不持有密钥）。
+// 仅当 PROXY_URL 为空时，回退到内嵌的 GITHUB_TOKEN（临时方案，代理上线后应移除）。
 const GH_TOKEN = (window.APP_CONFIG && window.APP_CONFIG.GITHUB_TOKEN) || "";
+const PROXY_URL = (window.APP_CONFIG && window.APP_CONFIG.PROXY_URL) || "";
 const ADMIN_PASSWORD = (window.APP_CONFIG && window.APP_CONFIG.ADMIN_PASSWORD) || "";
 
 // ---------- 运行时状态 ----------
@@ -64,10 +65,26 @@ function findModel(catId, modelId) {
 }
 
 // 带鉴权的 API 请求
+// 若配置了后端代理(PROXY_URL)，请求经代理转发，由代理注入 Token（客户端不持有密钥）。
+// 否则回退到内嵌的 GITHUB_TOKEN（临时方案，代理上线后应移除）。
 async function apiFetch(path, opts = {}) {
-  const headers = Object.assign({ "Accept": "application/vnd.github+json" }, opts.headers || {});
-  if (token) headers["Authorization"] = "Bearer " + token;
-  const res = await fetch(API + path, { ...opts, headers });
+  let res;
+  if (PROXY_URL) {
+    const method = opts.method || "GET";
+    let bodyObj;
+    if (opts.body) {
+      try { bodyObj = JSON.parse(opts.body); } catch (_) { bodyObj = opts.body; }
+    }
+    res = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, path, body: bodyObj }),
+    });
+  } else {
+    const headers = Object.assign({ "Accept": "application/vnd.github+json" }, opts.headers || {});
+    if (token) headers["Authorization"] = "Bearer " + token;
+    res = await fetch(API + path, { ...opts, headers });
+  }
   if (!res.ok) {
     let detail = "";
     try { detail = (await res.json()).message; } catch (_) {}
@@ -411,7 +428,7 @@ function openLogin() {
 function closeLogin() { $("loginModal").classList.add("hidden"); }
 
 async function doLogin() {
-  if (!GH_TOKEN) {
+  if (!GH_TOKEN && !PROXY_URL) {
     $("loginErr").textContent = "站点未配置写操作凭据，无法启用管理功能";
     return;
   }

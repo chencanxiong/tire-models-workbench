@@ -1,11 +1,15 @@
-// 写操作凭据（GITHUB_TOKEN）：请填入「细粒度 Personal Access Token」
-//   创建步骤：GitHub → 头像 → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token
-//     - Resource owner: chencanxiong
-//     - Repository access: Only select repositories → 选 tire-models-workbench
-//     - Permissions → Repository permissions → Contents: Read and Write
-//   不要使用全账号 repo 权限的 Token（会随公开站点暴露，危及整个 GitHub 账号）。
-// ADMIN_PASSWORD 仅为界面门禁（源码可见），用于防止普通访客误删，请自行修改。
+// =========================================================
+//  轮胎型号工作台 · 配置
+// =========================================================
+
+// 后端代理地址：部署 Cloudflare Worker 代理（见仓库内 proxy/ 目录）后，把地址填到这里，例如：
+//   https://tire-workbench-proxy.<你的子域>.workers.dev
+// 一旦非空，所有写操作（增/删/上传）都经代理转发，由代理注入 Token，
+// 前端完全不持有任何密钥 —— 最安全。
+// 留空时前端无写能力（管理员无法登录），需先部署代理并填入地址。
 window.APP_CONFIG = {
-  GITHUB_TOKEN: "{{填入细粒度Token}}",
-  ADMIN_PASSWORD: "tire2026"
+  PROXY_URL: "",
+
+  // 管理员密码（界面门禁，源码可见）。仅用于防止普通访客误触增删，不是真正鉴权。
+  ADMIN_PASSWORD: "123789"
 };
