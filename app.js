@@ -7,7 +7,7 @@
 
 const CONFIG = {
   OWNER: "chencanxiong",
-  REPO: "tire-workbench",
+  REPO: "tire-models-workbench",
   BRANCH: "main",
   DATA_PATH: "tires.json",
   MAX_FILE_MB: 25, // GitHub Contents API 单次上传上限（约）
