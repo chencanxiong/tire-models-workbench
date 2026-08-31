@@ -2,13 +2,15 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2563eb" />
   <title>轮胎型号工作台</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
+      <button id="menuBtn" class="icon-btn menu-btn" aria-label="菜单">☰</button>
       <span class="logo">🛞</span>
       <h1>轮胎型号工作台</h1>
     </div>
@@ -20,15 +22,17 @@
     </div>
   </header>
 
+  <div id="drawerMask" class="drawer-mask hidden"></div>
+
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div id="sidebarList" class="sidebar-list"></div>
       <div id="sidebarEmpty" class="empty-hint">暂无分类，管理员可点击右上角「添加分类」。</div>
     </aside>
 
     <main class="content">
       <div id="contentEmpty" class="empty-hint big">
-        <p>👈 请从左侧选择一个型号查看照片与视频</p>
+        <p>👈 请选择分类与型号查看照片 / 视频</p>
         <p class="sub">支持多设备访问 · 可查询 · 可下载</p>
       </div>
 
@@ -51,6 +55,9 @@
       </div>
     </main>
   </div>
+
+  <!-- 手机端悬浮上传按钮 -->
+  <button id="fabBtn" class="fab hidden" aria-label="上传图片/视频">＋</button>
 
   <!-- 管理员登录弹窗 -->
   <div id="loginModal" class="modal hidden">

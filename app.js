@@ -37,6 +37,9 @@ const contentEmpty = $("contentEmpty");
 const contentPanel = $("contentPanel");
 const mediaGrid = $("mediaGrid");
 const mediaEmpty = $("mediaEmpty");
+const sidebarEl = $("sidebar");
+const drawerMask = $("drawerMask");
+const fabBtn = $("fabBtn");
 
 // =========================================================
 //  工具函数
@@ -174,6 +177,21 @@ function render() {
   $("addCatBtn").classList.toggle("hidden", !isAdmin);
   $("adminBtn").classList.toggle("hidden", isAdmin);
   $("logoutBtn").classList.toggle("hidden", !isAdmin);
+  updateFab();
+}
+
+// 手机端抽屉开关
+function openDrawer() {
+  sidebarEl.classList.add("open");
+  drawerMask.classList.remove("hidden");
+}
+function closeDrawer() {
+  sidebarEl.classList.remove("open");
+  drawerMask.classList.add("hidden");
+}
+// 悬浮上传按钮：仅在管理员且已选中型号时显示
+function updateFab() {
+  fabBtn.classList.toggle("hidden", !(isAdmin && !!currentModelId));
 }
 
 function renderSidebar() {
@@ -223,6 +241,7 @@ function renderSidebar() {
           currentCatId = cat.id;
           currentModelId = m.id;
           render();
+          closeDrawer();
         });
         if (isAdmin) {
           const del = document.createElement("button");
@@ -459,6 +478,9 @@ $("loginOk").addEventListener("click", doLogin);
 $("addCatBtn").addEventListener("click", addCategory);
 $("addModelBtn").addEventListener("click", addModel);
 $("uploadBtn").addEventListener("click", () => $("fileInput").click());
+$("menuBtn").addEventListener("click", openDrawer);
+drawerMask.addEventListener("click", closeDrawer);
+fabBtn.addEventListener("click", () => $("fileInput").click());
 $("fileInput").addEventListener("change", (e) => {
   if (e.target.files.length) uploadMedia(e.target.files);
   e.target.value = "";
