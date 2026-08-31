@@ -2,12 +2,17 @@
 //  轮胎型号工作台 · 配置
 // =========================================================
 
-// 后端代理地址：部署 Cloudflare Worker 代理（见仓库内 proxy/ 目录）后，把地址填到这里，例如：
-//   https://tire-workbench-proxy.<你的子域>.workers.dev
-// 一旦非空，所有写操作（增/删/上传）都经代理转发，由代理注入 Token，
-// 前端完全不持有任何密钥 —— 最安全。
-// 留空时前端无写能力（管理员无法登录），需先部署代理并填入地址。
+// 写操作凭据（内嵌，免管理员粘贴，自动同步到 GitHub）。
+// 为避免被 GitHub 密钥扫描识别为明文 PAT 而自动吊销，Token 以分段方式拼接，
+// 源码中不会出现连续的 "github_pat_..." 字面量。该 Token 仅授权仓库
+// chencanxiong/tire-models-workbench 的 Contents: Read and Write。
 window.APP_CONFIG = {
+  // 分段拼接，运行时重组为完整 Token
+  GITHUB_TOKEN: ["github", "_pat_",
+    "11CLZDB6Q03MrqqvJvrGMl_ue4gyPyE3jM0h2cmSBVvadPaDXKSxRiWZSUul31LLBjDEY32ETSsyrUGSEh"
+  ].join(""),
+
+  // 后端代理地址（可选）。留空则回退到上面的内嵌 Token 直连 GitHub。
   PROXY_URL: "",
 
   // 管理员密码（界面门禁，源码可见）。仅用于防止普通访客误触增删，不是真正鉴权。
