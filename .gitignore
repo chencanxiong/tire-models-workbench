@@ -1,0 +1,4 @@
+.workbuddy/
+*_repo_create.json
+*_pages.json
+.DS_Store

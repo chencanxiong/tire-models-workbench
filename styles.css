@@ -177,6 +177,11 @@ body {
   outline: none;
 }
 .modal-box textarea:focus { border-color: var(--primary); }
+.modal-box input[type=password] {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; font-size: 14px; outline: none;
+}
+.modal-box input[type=password]:focus { border-color: var(--primary); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .login-err { color: var(--danger); font-size: 13px; min-height: 18px; margin: 10px 0 0; }
 

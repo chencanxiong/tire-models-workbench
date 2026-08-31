@@ -7,9 +7,9 @@ https://chencanxiong.github.io/tire-models-workbench/
 
 ## 权限模型
 - **普通访客（任何人）**：左侧浏览分类（一级菜单）→ 型号（二级菜单）→ 查看图片/视频，点击「下载」保存到本机。无需登录。
-- **管理员**：在页面右上角「管理员登录」处粘贴 GitHub Personal Access Token（需 `repo` 权限）。登录后显示「＋ 添加分类 / ＋ 添加型号 / ⬆ 上传 / 🗑 删除」等按钮。
-  - Token 仅保存在你当前浏览器的 `localStorage`，**不会上传到任何服务器，也不会写进网页源码**。换设备/换浏览器管理时需重新粘贴 Token。
-  - 退出管理员：点击「退出管理员」即可清除本机 Token。
+- **管理员**：右上角「管理员登录」→ 输入 `config.js` 中设置的 **管理员密码** → 即显示「＋ 添加分类 / ＋ 添加型号 / ⬆ 上传 / 🗑 删除」等按钮，操作直接同步到 GitHub（无需粘贴 Token）。
+  - 写操作凭据（GitHub Token）已内嵌在 `config.js`，任何设备的管理员输密码即可使用；普通访客看不到增删按钮。
+  - 退出管理员：点击「退出管理员」即隐藏增删按钮（凭据仍在，下次刷新需重新输密码）。
 
 ## 删除按钮位置（按你的要求）
 1. **一级菜单（分类）**：每个分类行右侧的 🗑 —— 删除整个分类及其下所有型号与媒体。
@@ -30,8 +30,10 @@ https://chencanxiong.github.io/tire-models-workbench/
 
 ## 注意事项
 - **单文件大小限制**：GitHub Contents API 单次上传约 25MB。超过此大小的视频会被跳过，请先压缩，或改用 Git LFS / 对象存储。
-- **Token 安全**：你提供的 Token 拥有该 GitHub 账号的完整仓库读写权限。建议为仅此用途新建一个细粒度 Token（只授权 `tire-models-workbench` 仓库），用毕可在 GitHub → Settings → Developer settings 中吊销。
-- **仓库为公开**：任何人都能访问页面与媒体文件（符合"其他人只查看下载"的需求）。若资料需保密，请将仓库改为私有并另行处理 Pages 访问权限。
+- **凭据已内嵌（务必重视）**：为做到"免 Token 直接增删"，GitHub 写凭据写在公开的 `config.js` 里。任何人查看网页源码都能拿到它。
+  - 因此请**立即**把 `config.js` 里的 `GITHUB_TOKEN` 换成**细粒度 Personal Access Token**，仅授权 `tire-models-workbench` 这一个仓库（Settings → Developer settings → Fine-grained tokens，Repository permissions → Contents: Read and Write），并**吊销原来那个全账号 `repo` Token**。这样即使泄露，影响也只限于本仓库。
+  - `ADMIN_PASSWORD` 只是界面门禁（源码可见），用于避免普通访客误删，**不是真正的鉴权**；不要依赖它防恶意删除。
+- **仓库为公开**：任何人都能访问页面与媒体文件（符合"其他人只查看下载"的需求）。若资料需保密，请将仓库改为私有并另行处理 Pages 访问权限；或改用带后端代理的方案（令牌不落前端）。
 
 ## 本地预览 / 二次开发
 ```

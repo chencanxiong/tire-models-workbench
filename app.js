@@ -15,10 +15,15 @@ const CONFIG = {
 
 const API = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}`;
 
+// 写操作凭据（内嵌于 config.js，无需管理员手动粘贴）。
+// 管理员身份由 ADMIN_PASSWORD 在界面上解锁（仅门禁，非真鉴权）。
+const GH_TOKEN = (window.APP_CONFIG && window.APP_CONFIG.GITHUB_TOKEN) || "";
+const ADMIN_PASSWORD = (window.APP_CONFIG && window.APP_CONFIG.ADMIN_PASSWORD) || "";
+
 // ---------- 运行时状态 ----------
 let data = { categories: [] };
-let token = localStorage.getItem("gh_token") || "";
-let isAdmin = !!token;
+let token = GH_TOKEN;   // 写操作凭据：内嵌，免粘贴，自动同步
+let isAdmin = false;     // 管理员身份由密码解锁（UI 门禁）
 let currentCatId = null;
 let currentModelId = null;
 let filterText = "";
@@ -122,6 +127,13 @@ async function saveData(message) {
 //  读取数据（公开，无需 Token）
 // =========================================================
 async function loadData() {
+  // 优先从 GitHub API 读取最新提交（提交后立即可见，避免 Pages 缓存导致的覆盖丢失）
+  try {
+    const r = await apiFetch(`/contents/${CONFIG.DATA_PATH}`);
+    const json = JSON.parse(decodeURIComponent(escape(atob(r.content))));
+    if (json && Array.isArray(json.categories)) { data = json; render(); return; }
+  } catch (e) { /* 回退到 Pages */ }
+  // 回退：直接从站点读取
   try {
     const res = await fetch(CONFIG.DATA_PATH + "?t=" + Date.now());
     if (res.ok) {
@@ -391,27 +403,23 @@ async function deleteCategory(cat) {
 //  管理员登录 / 退出
 // =========================================================
 function openLogin() {
-  $("tokenInput").value = "";
+  $("adminPwd").value = "";
   $("loginErr").textContent = "";
   $("loginModal").classList.remove("hidden");
-  $("tokenInput").focus();
+  $("adminPwd").focus();
 }
 function closeLogin() { $("loginModal").classList.add("hidden"); }
 
 async function doLogin() {
-  const t = $("tokenInput").value.trim();
-  if (!t) { $("loginErr").textContent = "请输入 Token"; return; }
-  // 验证 Token 是否有效
-  try {
-    const r = await fetch("https://api.github.com/user", {
-      headers: { Authorization: "Bearer " + t },
-    });
-    if (!r.ok) { $("loginErr").textContent = "Token 无效或无权限"; return; }
-  } catch (e) {
-    $("loginErr").textContent = "网络错误：" + e.message; return;
+  if (!GH_TOKEN) {
+    $("loginErr").textContent = "站点未配置写操作凭据，无法启用管理功能";
+    return;
   }
-  token = t;
-  localStorage.setItem("gh_token", token);
+  const pwd = $("adminPwd").value;
+  if (ADMIN_PASSWORD && pwd !== ADMIN_PASSWORD) {
+    $("loginErr").textContent = "管理员密码错误";
+    return;
+  }
   isAdmin = true;
   closeLogin();
   render();
@@ -419,9 +427,7 @@ async function doLogin() {
 }
 
 function doLogout() {
-  token = "";
   isAdmin = false;
-  localStorage.removeItem("gh_token");
   render();
   toast("已退出管理员模式");
 }
