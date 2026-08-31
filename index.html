@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>轮胎型号工作台</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🛞</span>
+      <h1>轮胎型号工作台</h1>
+    </div>
+    <div class="top-actions">
+      <input id="search" type="search" placeholder="搜索型号 / 分类…" autocomplete="off" />
+      <button id="addCatBtn" class="btn btn-primary hidden">＋ 添加分类</button>
+      <button id="adminBtn" class="btn btn-ghost">管理员登录</button>
+      <button id="logoutBtn" class="btn btn-ghost hidden">退出管理员</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div id="sidebarList" class="sidebar-list"></div>
+      <div id="sidebarEmpty" class="empty-hint">暂无分类，管理员可点击右上角「添加分类」。</div>
+    </aside>
+
+    <main class="content">
+      <div id="contentEmpty" class="empty-hint big">
+        <p>👈 请从左侧选择一个型号查看照片与视频</p>
+        <p class="sub">支持多设备访问 · 可查询 · 可下载</p>
+      </div>
+
+      <div id="contentPanel" class="content-panel hidden">
+        <div class="crumb">
+          <span id="crumbCat"></span>
+          <span class="sep">/</span>
+          <span id="crumbModel"></span>
+        </div>
+        <div class="panel-head">
+          <div id="mediaCount" class="media-count"></div>
+          <div class="panel-actions">
+            <button id="addModelBtn" class="btn btn-primary hidden">＋ 添加型号</button>
+            <button id="uploadBtn" class="btn btn-primary hidden">⬆ 上传图片/视频</button>
+            <input id="fileInput" type="file" accept="image/*,video/*" multiple class="hidden" />
+          </div>
+        </div>
+        <div id="mediaGrid" class="media-grid"></div>
+        <div id="mediaEmpty" class="empty-hint">该型号下还没有图片或视频，管理员可点击「上传图片/视频」。</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 管理员登录弹窗 -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-box">
+      <h3>管理员登录</h3>
+      <p class="modal-tip">粘贴你的 GitHub Personal Access Token（需有 repo 权限）。Token 仅保存在本机浏览器，不会上传到任何服务器。</p>
+      <textarea id="tokenInput" placeholder="ghp_xxx..." rows="3"></textarea>
+      <div class="modal-actions">
+        <button id="loginCancel" class="btn btn-ghost">取消</button>
+        <button id="loginOk" class="btn btn-primary">登录</button>
+      </div>
+      <p id="loginErr" class="login-err"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
