@@ -9,7 +9,7 @@
 window.APP_CONFIG = {
   // 分段拼接，运行时重组为完整 Token
   GITHUB_TOKEN: ["github", "_pat_",
-    "11CLZDB6Q03MrqqvJvrGMl_ue4gyPyE3jM0h2cmSBVvadPaDXKSxRiWZSUul31LLBjDEY32ETSsyrUGSEh"
+    "11CLZDB6Q0ilCEnTCLHlkg_REUp9KkVoHtaABkxEu6Zk8DLhGhTuoD3XevKjHfEIhFRTXRQ7WO3seNCOFl"
   ].join(""),
 
   // 后端代理地址（可选）。留空则回退到上面的内嵌 Token 直连 GitHub。
