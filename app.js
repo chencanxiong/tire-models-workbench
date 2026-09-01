@@ -300,7 +300,7 @@ function renderContent() {
   mediaEmpty.classList.toggle("hidden", media.length > 0);
   mediaGrid.innerHTML = "";
 
-  media.forEach((item) => {
+  media.forEach((item, i) => {
     const card = document.createElement("div");
     card.className = "media-card";
     const thumb = document.createElement("div");
@@ -316,7 +316,7 @@ function renderContent() {
     }
     card.appendChild(thumb);
     thumb.style.cursor = "zoom-in";
-    thumb.addEventListener("click", () => openLightbox(item));
+    thumb.addEventListener("click", () => openLightbox(media, i));
 
     const body = document.createElement("div");
     body.className = "media-body";
@@ -373,16 +373,26 @@ let pendingFiles = [];
 
 function openUpload() {
   if (!isAdmin) return;
-  const model = currentCatId && findCat(currentCatId) && currentModelId && findModel(currentCatId, currentModelId);
+  const cat = currentCatId && findCat(currentCatId);
+  const model = cat && currentModelId && findModel(cat.id, currentModelId);
   if (!model) { toast("请先在左侧选择一个型号", true); return; }
   $("progressWrap").classList.add("hidden");
   renderUploadList();
   $("uploadModal").classList.remove("hidden");
+  pushOverlay("upload");
+}
+
+function hideUploadModal() {
+  $("uploadModal").classList.add("hidden");
+  pendingFiles = [];
+  $("progressWrap").classList.add("hidden");
+  renderUploadList();
 }
 
 function closeUpload() {
-  $("uploadModal").classList.add("hidden");
-  pendingFiles = [];
+  // 若已压入历史，走 history.back()，让手机返回键也能关闭弹窗
+  if (historyTag === "upload") popOverlay();
+  else hideUploadModal();
 }
 
 function addFiles(fileList) {
@@ -454,8 +464,8 @@ async function uploadAll() {
   await loadData();
   toast(`已上传 ${done} 个文件`);
   pendingFiles = [];
-  $("uploadModal").classList.add("hidden");
   $("progressWrap").classList.add("hidden");
+  closeUpload();
 }
 
 async function deleteMedia(cat, model, item) {
@@ -534,39 +544,90 @@ function doLogout() {
 }
 
 // =========================================================
-//  灯箱：大图 / 视频查看 + 缩放 / 平移 / 捏合
+//  覆盖层历史栈：让手机「返回」键/手势先关闭弹层，而不是退出网址
 // =========================================================
-let lbScale = 1, lbX = 0, lbY = 0;
+let historyTag = null;
+function pushOverlay(tag) {
+  if (historyTag !== null) return;
+  try { history.pushState({ overlay: tag }, ""); } catch (_) {}
+  historyTag = tag;
+}
+function popOverlay() {
+  if (historyTag === null) return;
+  historyTag = null;
+  history.back();
+}
+window.addEventListener("popstate", () => {
+  const t = historyTag;
+  historyTag = null;
+  if (t === "lightbox") hideLightbox();
+  else if (t === "upload") closeUpload();
+});
+
+// =========================================================
+//  灯箱：大图 / 视频查看 + 缩放 / 平移 / 捏合 / 切换 / 旋转
+// =========================================================
+let lbScale = 1, lbX = 0, lbY = 0, lbRot = 0;
 let lbPanning = false, lbStartX = 0, lbStartY = 0, lbBaseX = 0, lbBaseY = 0;
 let lbPointers = [];
 let lbPinchDist = 0, lbPinchScale = 1;
+let lbList = [], lbIndex = 0;
+let lbSwipeX = 0, lbSwipeY = 0, lbJustSwiped = false;
 
-function openLightbox(item) {
+function openLightbox(list, index) {
+  lbList = Array.isArray(list) && list.length ? list : [];
+  lbIndex = Number.isInteger(index) ? index : 0;
+  showLbItem();
+  pushOverlay("lightbox");
+}
+
+function showLbItem() {
+  const item = lbList[lbIndex];
+  if (!item) { hideLightbox(); return; }
+  lbScale = 1; lbX = 0; lbY = 0; lbRot = 0;
   const img = $("lightboxImg");
   const video = $("lightboxVideo");
-  lbScale = 1; lbX = 0; lbY = 0; applyLbTransform();
   if (item.type === "video") {
     img.classList.add("hidden");
     video.classList.remove("hidden");
     video.src = item.path;
     video.play && video.play().catch(() => {});
-    $("lightboxTitle").textContent = "🎬 " + item.name;
   } else {
+    video.pause && video.pause();
+    video.removeAttribute("src");
     video.classList.add("hidden");
     img.classList.remove("hidden");
     img.src = item.path;
-    $("lightboxTitle").textContent = "🖼 " + item.name;
   }
   $("lightbox").classList.remove("hidden");
+  $("lightboxTitle").textContent = (item.type === "video" ? "🎬 " : "🖼 ") + item.name;
+  const multi = lbList.length > 1;
+  $("lightboxCounter").textContent = multi ? `${lbIndex + 1} / ${lbList.length}` : "";
+  $("prevBtn").classList.toggle("hidden", !multi);
+  $("nextBtn").classList.toggle("hidden", !multi);
+  applyLbTransform();
 }
 
-function closeLightbox() {
+// 切换：delta = -1 上一张，1 下一张（循环）
+function lbStep(delta) {
+  if (lbList.length < 2) return;
+  lbIndex = (lbIndex + delta + lbList.length) % lbList.length;
+  showLbItem();
+}
+
+function hideLightbox() {
   $("lightbox").classList.add("hidden");
   const v = $("lightboxVideo");
   v.pause && v.pause();
   v.removeAttribute("src");
   v.load && v.load();
   lbPointers = [];
+  lbPanning = false;
+}
+function closeLightbox() {
+  // 若已压入历史，走 history.back() 让返回栈回退（手机返回键也能关闭）
+  if (historyTag === "lightbox") popOverlay();
+  else hideLightbox();
 }
 
 function lbEl() {
@@ -574,12 +635,16 @@ function lbEl() {
 }
 function applyLbTransform() {
   const el = lbEl();
-  el.style.transform = `translate(${lbX}px, ${lbY}px) scale(${lbScale})`;
+  el.style.transform = `translate(${lbX}px, ${lbY}px) scale(${lbScale}) rotate(${lbRot}deg)`;
   $("zoomLabel").textContent = Math.round(lbScale * 100) + "%";
 }
 function setLbScale(s) {
   lbScale = Math.min(8, Math.max(1, s));
   if (lbScale === 1) { lbX = 0; lbY = 0; }
+  applyLbTransform();
+}
+function rotateLb(deg) {
+  lbRot = (lbRot + deg) % 360;
   applyLbTransform();
 }
 
@@ -588,9 +653,11 @@ function setLbScale(s) {
   const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
   stage.addEventListener("pointerdown", (e) => {
+    lbJustSwiped = false;
     lbPointers.push(e);
     try { stage.setPointerCapture(e.pointerId); } catch (_) {}
     if (lbPointers.length === 1) {
+      lbSwipeX = e.clientX; lbSwipeY = e.clientY;
       if (lbScale > 1) {
         lbPanning = true; lbStartX = e.clientX; lbStartY = e.clientY; lbBaseX = lbX; lbBaseY = lbY;
       }
@@ -612,8 +679,21 @@ function setLbScale(s) {
     }
   });
   const endPtr = (e) => {
+    const wasSingle = lbPointers.length === 1;
     lbPointers = lbPointers.filter((p) => p.pointerId !== e.pointerId);
-    if (lbPointers.length === 0) lbPanning = false;
+    if (lbPointers.length > 0) { lbPanning = false; return; }
+    // 未放大时：左右滑动 → 上一张 / 下一张
+    if (wasSingle && !lbPanning && lbScale === 1) {
+      const dx = e.clientX - lbSwipeX;
+      const dy = e.clientY - lbSwipeY;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        lbJustSwiped = true;
+        lbStep(dx < 0 ? 1 : -1);
+        lbPanning = false;
+        return;
+      }
+    }
+    lbPanning = false;
   };
   stage.addEventListener("pointerup", endPtr);
   stage.addEventListener("pointercancel", endPtr);
@@ -623,24 +703,37 @@ function setLbScale(s) {
     setLbScale(lbScale + (e.deltaY < 0 ? 0.25 : -0.25));
   }, { passive: false });
 
-  // 点击空白处（未缩放时）关闭
+  // 点击空白处（未缩放时）关闭；滑动切换后不误判为点击
   stage.addEventListener("click", (e) => {
+    if (lbJustSwiped) { lbJustSwiped = false; return; }
     if (e.target === stage && !lbPanning && lbScale === 1) closeLightbox();
   });
 
   $("zoomInBtn").addEventListener("click", () => setLbScale(lbScale + 0.5));
   $("zoomOutBtn").addEventListener("click", () => setLbScale(lbScale - 0.5));
   $("zoomResetBtn").addEventListener("click", () => setLbScale(1));
+  $("rotateLeftBtn").addEventListener("click", () => rotateLb(-90));
+  $("rotateRightBtn").addEventListener("click", () => rotateLb(90));
+  $("prevBtn").addEventListener("click", () => lbStep(-1));
+  $("nextBtn").addEventListener("click", () => lbStep(1));
+  // 切换按钮的按下不要被当成滑动手势
+  ["prevBtn", "nextBtn"].forEach((id) =>
+    $(id).addEventListener("pointerdown", (e) => e.stopPropagation())
+  );
   $("lightboxClose").addEventListener("click", closeLightbox);
   $("lightbox").addEventListener("click", (e) => {
+    if (lbJustSwiped) { lbJustSwiped = false; return; }
     if (e.target === $("lightbox") && lbScale === 1) closeLightbox();
   });
   document.addEventListener("keydown", (e) => {
     if ($("lightbox").classList.contains("hidden")) return;
     if (e.key === "Escape") closeLightbox();
+    else if (e.key === "ArrowLeft") lbStep(-1);
+    else if (e.key === "ArrowRight") lbStep(1);
     else if (e.key === "+" || e.key === "=") setLbScale(lbScale + 0.5);
     else if (e.key === "-") setLbScale(lbScale - 0.5);
     else if (e.key === "0") setLbScale(1);
+    else if (e.key === "r" || e.key === "R") rotateLb(90);
   });
 })();
 
