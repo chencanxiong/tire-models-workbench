@@ -84,7 +84,10 @@
   <div id="lightbox" class="lightbox hidden">
     <div class="lightbox-bar">
       <span id="lightboxTitle" class="lightbox-title"></span>
+      <span id="lightboxCounter" class="lightbox-counter"></span>
       <div class="lightbox-tools">
+        <button id="rotateLeftBtn" class="lb-btn" title="向左旋转 90°">↺</button>
+        <button id="rotateRightBtn" class="lb-btn" title="向右旋转 90°">↻</button>
         <button id="zoomOutBtn" class="lb-btn" title="缩小">－</button>
         <span id="zoomLabel" class="zoom-label">100%</span>
         <button id="zoomInBtn" class="lb-btn" title="放大">＋</button>
@@ -93,8 +96,10 @@
       </div>
     </div>
     <div id="lightboxStage" class="lightbox-stage">
+      <button id="prevBtn" class="nav-btn nav-prev hidden" title="上一张（←）">‹</button>
       <img id="lightboxImg" class="lightbox-media hidden" alt="" />
       <video id="lightboxVideo" class="lightbox-media hidden" controls playsinline></video>
+      <button id="nextBtn" class="nav-btn nav-next hidden" title="下一张（→）">›</button>
     </div>
   </div>
 
