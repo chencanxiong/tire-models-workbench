@@ -1,5 +1,5 @@
 /* =========================================================
-   轮胎型号工作台  (GitHub Pages + GitHub Contents API)
+   轮胎素材库  (GitHub Pages + GitHub Contents API)
    - 公开用户：查看 / 下载
    - 管理员：输入 GitHub Token 后可 新增 / 删除
    - 数据结构：分类(一级) → 型号(二级) → 图片/视频
