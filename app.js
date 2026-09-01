@@ -20,6 +20,8 @@ const API = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}`;
 const GH_TOKEN = (window.APP_CONFIG && window.APP_CONFIG.GITHUB_TOKEN) || "";
 const PROXY_URL = (window.APP_CONFIG && window.APP_CONFIG.PROXY_URL) || "";
 const ADMIN_PASSWORD = (window.APP_CONFIG && window.APP_CONFIG.ADMIN_PASSWORD) || "";
+// 媒体直连 raw.githubusercontent.com：push 后几秒即可见，绕过 GitHub Pages 构建延迟（避免上传后黑屏）。
+const MEDIA_BASE_RAW = "https://raw.githubusercontent.com/chencanxiong/tire-models-workbench/main/";
 
 // ---------- 运行时状态 ----------
 let data = { categories: [] };
@@ -307,11 +309,17 @@ function renderContent() {
     thumb.className = "media-thumb";
     if (item.type === "video") {
       const v = document.createElement("video");
-      v.src = item.path; v.muted = true; v.playsInline = true; v.preload = "metadata";
+      v.src = MEDIA_BASE_RAW + item.path; v.muted = true; v.playsInline = true; v.preload = "metadata";
+      // 强制渲染首帧，避免缩略图黑屏
+      v.addEventListener("loadeddata", () => { try { v.currentTime = 0.1; } catch (_) {} });
       thumb.appendChild(v);
     } else {
       const img = document.createElement("img");
-      img.src = item.path; img.loading = "lazy"; img.alt = item.name;
+      img.src = MEDIA_BASE_RAW + item.path; img.loading = "lazy"; img.alt = item.name;
+      img.addEventListener("error", function onErr() {
+        if (!img.dataset.triedPages) { img.dataset.triedPages = "1"; img.src = item.path; }
+        else { const t = document.createElement("div"); t.className = "load-fail"; t.textContent = "⚠ 同步中，刷新重试"; img.replaceWith(t); }
+      });
       thumb.appendChild(img);
     }
     card.appendChild(thumb);
@@ -462,7 +470,7 @@ async function uploadAll() {
   }
   await saveData(`批量上传 ${total} 个文件到 ${model.name}`);
   await loadData();
-  toast(`已上传 ${done} 个文件`);
+  toast(`已上传 ${done} 个文件，正在同步到云端，稍候刷新即可查看`);
   pendingFiles = [];
   $("progressWrap").classList.add("hidden");
   closeUpload();
@@ -587,17 +595,28 @@ function showLbItem() {
   lbScale = 1; lbX = 0; lbY = 0; lbRot = 0;
   const img = $("lightboxImg");
   const video = $("lightboxVideo");
+  $("lbLoading").classList.add("hidden");
+  $("lbError").classList.add("hidden");
   if (item.type === "video") {
     img.classList.add("hidden");
     video.classList.remove("hidden");
-    video.src = item.path;
-    video.play && video.play().catch(() => {});
+    video.preload = "auto";
+    // 移动端禁止非静音自动播放，改为显示首帧 + 控件，避免“黑屏未播放”
+    video.addEventListener("loadeddata", () => { try { video.currentTime = 0.1; } catch (_) {} }, { once: true });
+    video.src = MEDIA_BASE_RAW + item.path;
   } else {
     video.pause && video.pause();
     video.removeAttribute("src");
     video.classList.add("hidden");
     img.classList.remove("hidden");
-    img.src = item.path;
+    img.removeAttribute("data-tried-pages");
+    img.onload = () => { $("lbLoading").classList.add("hidden"); };
+    img.onerror = () => {
+      if (!img.dataset.triedPages) { img.dataset.triedPages = "1"; img.src = item.path; }
+      else { $("lbLoading").classList.add("hidden"); $("lbError").classList.remove("hidden"); }
+    };
+    $("lbLoading").classList.remove("hidden");
+    img.src = MEDIA_BASE_RAW + item.path;
   }
   $("lightbox").classList.remove("hidden");
   $("lightboxTitle").textContent = (item.type === "video" ? "🎬 " : "🖼 ") + item.name;
