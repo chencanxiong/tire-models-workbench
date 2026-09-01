@@ -460,6 +460,61 @@ function renderUploadList() {
   $("uploadAllBtn").disabled = pendingFiles.length === 0;
 }
 
+// ---------- 视频转码（ffmpeg.wasm 单线程核心，无需 COOP/COEP 响应头） ----------
+// 作用：把手机上传的 HEVC/.mov 等浏览器不友好格式，在浏览器内转为通用 H.264 MP4，
+// 存到仓库后任何手机/电脑都能直接播放。组件从 jsDelivr 按需懒加载，失败时回退原样上传。
+let _ffmpeg = null;
+let _ffmpegLoading = null;
+
+async function loadFFmpeg() {
+  if (_ffmpeg) return _ffmpeg;
+  if (_ffmpegLoading) return _ffmpegLoading;
+  _ffmpegLoading = (async () => {
+    const { createFFmpeg, fetchFile } = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/+esm");
+    const ff = createFFmpeg({
+      corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js",
+      log: false,
+      progress: (ratio) => {
+        const p = Math.max(0, Math.min(100, Math.round((ratio || 0) * 100)));
+        const el = $("uploadStatus");
+        if (el && el.dataset.busy === "1") el.textContent = `正在转换视频… ${p}%`;
+      }
+    });
+    await ff.load();
+    ff._fetchFile = fetchFile;
+    _ffmpeg = ff;
+    return ff;
+  })();
+  return _ffmpegLoading;
+}
+
+// 判断是否需要转码：视频、文件不太大（避免手机内存不足）、且不是标准 H.264 mp4
+function needsTranscode(file) {
+  if (!file.type.startsWith("video")) return false;
+  if (file.size > 150 * 1024 * 1024) return false; // 过大则跳过转码，直接原样上传
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  if (ext === "mp4" && file.type === "video/mp4") return false; // 假定为标准 H.264 MP4
+  return true;
+}
+
+async function transcodeVideoToMp4(file) {
+  const ff = await loadFFmpeg();
+  const inName = "in_" + Date.now() + ".tmp";
+  const outName = "out.mp4";
+  ff.FS("writeFile", inName, await ff._fetchFile(file));
+  await ff.run(
+    "-i", inName,
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+    "-c:a", "aac", "-b:a", "128k",
+    "-movflags", "+faststart",
+    outName
+  );
+  const data = ff.FS("readFile", outName);
+  ff.FS("unlink", inName); ff.FS("unlink", outName);
+  const base = file.name.replace(/\.[^.]+$/, "");
+  return new File([data.buffer], base + ".mp4", { type: "video/mp4" });
+}
+
 async function uploadAll() {
   if (!pendingFiles.length) return;
   const cat = findCat(currentCatId);
@@ -470,13 +525,29 @@ async function uploadAll() {
   const total = pendingFiles.length;
   let done = 0;
   for (const file of pendingFiles) {
-    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    let uploadFile = file;
+    // 视频：先在浏览器内转为通用 H.264 MP4，确保手机/电脑都能播放
+    if (needsTranscode(file)) {
+      const st = $("uploadStatus");
+      try {
+        st.dataset.busy = "1";
+        st.textContent = `正在转换视频「${file.name}」为通用格式…（首次需加载组件，请稍候）`;
+        uploadFile = await transcodeVideoToMp4(file);
+        st.textContent = `已转换：${file.name} → ${uploadFile.name}`;
+      } catch (e) {
+        toast(`视频转换失败，将按原格式上传：${file.name}`, true);
+        uploadFile = file;
+      } finally {
+        st.dataset.busy = "0";
+      }
+    }
+    const ext = (uploadFile.name.split(".").pop() || "bin").toLowerCase();
     const storeName = `${uid()}.${ext}`;
     const path = `media/${cat.id}/${model.id}/${storeName}`;
-    const type = file.type.startsWith("video") ? "video" : "image";
+    const type = uploadFile.type.startsWith("video") ? "video" : "image";
     try {
-      const b64 = await fileToBase64(file);
-      await putFile(path, b64, `上传 ${file.name} 到 ${model.name}`);
+      const b64 = await fileToBase64(uploadFile);
+      await putFile(path, b64, `上传 ${uploadFile.name} 到 ${model.name}`);
       model.media.push({ id: uid(), name: file.name, type, path });
     } catch (e) {
       toast(`上传失败：${file.name} (${e.message})`, true);
@@ -627,7 +698,7 @@ function showLbItem() {
       if (vbi < MEDIA_BASES.length - 1) { vbi++; video.src = absMediaUrl(item.path, vbi); }
       else {
         $("lbLoading").classList.add("hidden");
-        $("lbError").textContent = "⚠ 视频无法播放：可能为手机不支持的格式（如 HEVC/.mov），请在电脑端查看，或上传 H.264 编码的 MP4。";
+        $("lbError").textContent = "⚠ 视频无法播放：可能是文件过大或格式特殊。新上传的视频已自动转为通用格式；若此文件仍无法播放，请在电脑端浏览器查看或重新上传。";
         $("lbError").classList.remove("hidden");
       }
     };
