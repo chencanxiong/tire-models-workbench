@@ -315,6 +315,8 @@ function renderContent() {
       thumb.appendChild(img);
     }
     card.appendChild(thumb);
+    thumb.style.cursor = "zoom-in";
+    thumb.addEventListener("click", () => openLightbox(item));
 
     const body = document.createElement("div");
     body.className = "media-body";
@@ -366,16 +368,73 @@ async function addModel() {
   toast("型号已添加");
 }
 
-async function uploadMedia(files) {
+// ---------- 批量上传（弹窗 + 拖拽 + 进度） ----------
+let pendingFiles = [];
+
+function openUpload() {
+  if (!isAdmin) return;
+  const model = currentCatId && findCat(currentCatId) && currentModelId && findModel(currentCatId, currentModelId);
+  if (!model) { toast("请先在左侧选择一个型号", true); return; }
+  $("progressWrap").classList.add("hidden");
+  renderUploadList();
+  $("uploadModal").classList.remove("hidden");
+}
+
+function closeUpload() {
+  $("uploadModal").classList.add("hidden");
+  pendingFiles = [];
+}
+
+function addFiles(fileList) {
+  const ok = [];
+  for (const f of fileList) {
+    if (!f.type.startsWith("image") && !f.type.startsWith("video")) {
+      toast(`「${f.name}」不是图片或视频，已跳过`, true); continue;
+    }
+    if (f.size / 1024 / 1024 > CONFIG.MAX_FILE_MB) {
+      toast(`「${f.name}」超过 ${CONFIG.MAX_FILE_MB}MB，已跳过`, true); continue;
+    }
+    if (pendingFiles.some((p) => p.name === f.name && p.size === f.size)) continue;
+    ok.push(f);
+  }
+  if (ok.length) pendingFiles.push(...ok);
+  renderUploadList();
+}
+
+function renderUploadList() {
+  const list = $("uploadList");
+  list.innerHTML = "";
+  pendingFiles.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.className = "upload-row";
+    const isVid = f.type.startsWith("video");
+    const sizeKB = (f.size / 1024).toFixed(0);
+    row.innerHTML =
+      `<span class="up-ico">${isVid ? "🎬" : "🖼"}</span>` +
+      `<span class="up-name"></span>` +
+      `<span class="up-size">${sizeKB} KB</span>` +
+      `<button class="up-del" title="移除">✕</button>`;
+    row.querySelector(".up-name").textContent = f.name;
+    row.querySelector(".up-del").addEventListener("click", () => {
+      pendingFiles.splice(i, 1);
+      renderUploadList();
+    });
+    list.appendChild(row);
+  });
+  $("uploadAllBtn").textContent = `上传 ${pendingFiles.length} 个文件`;
+  $("uploadAllBtn").disabled = pendingFiles.length === 0;
+}
+
+async function uploadAll() {
+  if (!pendingFiles.length) return;
   const cat = findCat(currentCatId);
   const model = cat && findModel(cat.id, currentModelId);
   if (!cat || !model) return;
-  for (const file of files) {
-    const sizeMB = file.size / 1024 / 1024;
-    if (sizeMB > CONFIG.MAX_FILE_MB) {
-      toast(`「${file.name}」超过 ${CONFIG.MAX_FILE_MB}MB，已跳过（GitHub API 限制）`, true);
-      continue;
-    }
+  $("uploadAllBtn").disabled = true;
+  $("progressWrap").classList.remove("hidden");
+  const total = pendingFiles.length;
+  let done = 0;
+  for (const file of pendingFiles) {
     const ext = (file.name.split(".").pop() || "bin").toLowerCase();
     const storeName = `${uid()}.${ext}`;
     const path = `media/${cat.id}/${model.id}/${storeName}`;
@@ -384,13 +443,19 @@ async function uploadMedia(files) {
       const b64 = await fileToBase64(file);
       await putFile(path, b64, `上传 ${file.name} 到 ${model.name}`);
       model.media.push({ id: uid(), name: file.name, type, path });
-      toast(`已上传：${file.name}`);
     } catch (e) {
       toast(`上传失败：${file.name} (${e.message})`, true);
     }
+    done++;
+    $("progressFill").style.width = Math.round((done / total) * 100) + "%";
+    $("progressText").textContent = `${done} / ${total}`;
   }
-  await saveData(`更新媒体索引`);
+  await saveData(`批量上传 ${total} 个文件到 ${model.name}`);
   await loadData();
+  toast(`已上传 ${done} 个文件`);
+  pendingFiles = [];
+  $("uploadModal").classList.add("hidden");
+  $("progressWrap").classList.add("hidden");
 }
 
 async function deleteMedia(cat, model, item) {
@@ -469,6 +534,117 @@ function doLogout() {
 }
 
 // =========================================================
+//  灯箱：大图 / 视频查看 + 缩放 / 平移 / 捏合
+// =========================================================
+let lbScale = 1, lbX = 0, lbY = 0;
+let lbPanning = false, lbStartX = 0, lbStartY = 0, lbBaseX = 0, lbBaseY = 0;
+let lbPointers = [];
+let lbPinchDist = 0, lbPinchScale = 1;
+
+function openLightbox(item) {
+  const img = $("lightboxImg");
+  const video = $("lightboxVideo");
+  lbScale = 1; lbX = 0; lbY = 0; applyLbTransform();
+  if (item.type === "video") {
+    img.classList.add("hidden");
+    video.classList.remove("hidden");
+    video.src = item.path;
+    video.play && video.play().catch(() => {});
+    $("lightboxTitle").textContent = "🎬 " + item.name;
+  } else {
+    video.classList.add("hidden");
+    img.classList.remove("hidden");
+    img.src = item.path;
+    $("lightboxTitle").textContent = "🖼 " + item.name;
+  }
+  $("lightbox").classList.remove("hidden");
+}
+
+function closeLightbox() {
+  $("lightbox").classList.add("hidden");
+  const v = $("lightboxVideo");
+  v.pause && v.pause();
+  v.removeAttribute("src");
+  v.load && v.load();
+  lbPointers = [];
+}
+
+function lbEl() {
+  return $("lightboxImg").classList.contains("hidden") ? $("lightboxVideo") : $("lightboxImg");
+}
+function applyLbTransform() {
+  const el = lbEl();
+  el.style.transform = `translate(${lbX}px, ${lbY}px) scale(${lbScale})`;
+  $("zoomLabel").textContent = Math.round(lbScale * 100) + "%";
+}
+function setLbScale(s) {
+  lbScale = Math.min(8, Math.max(1, s));
+  if (lbScale === 1) { lbX = 0; lbY = 0; }
+  applyLbTransform();
+}
+
+(function bindLightbox() {
+  const stage = $("lightboxStage");
+  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+
+  stage.addEventListener("pointerdown", (e) => {
+    lbPointers.push(e);
+    try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+    if (lbPointers.length === 1) {
+      if (lbScale > 1) {
+        lbPanning = true; lbStartX = e.clientX; lbStartY = e.clientY; lbBaseX = lbX; lbBaseY = lbY;
+      }
+    } else if (lbPointers.length === 2) {
+      lbPanning = false;
+      lbPinchDist = dist(lbPointers[0], lbPointers[1]);
+      lbPinchScale = lbScale;
+    }
+  });
+  stage.addEventListener("pointermove", (e) => {
+    lbPointers = lbPointers.map((p) => (p.pointerId === e.pointerId ? e : p));
+    if (lbPanning && lbPointers.length === 1) {
+      lbX = lbBaseX + (e.clientX - lbStartX);
+      lbY = lbBaseY + (e.clientY - lbStartY);
+      applyLbTransform();
+    } else if (lbPointers.length === 2) {
+      const d = dist(lbPointers[0], lbPointers[1]);
+      if (lbPinchDist > 0) setLbScale(lbPinchScale * (d / lbPinchDist));
+    }
+  });
+  const endPtr = (e) => {
+    lbPointers = lbPointers.filter((p) => p.pointerId !== e.pointerId);
+    if (lbPointers.length === 0) lbPanning = false;
+  };
+  stage.addEventListener("pointerup", endPtr);
+  stage.addEventListener("pointercancel", endPtr);
+
+  stage.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    setLbScale(lbScale + (e.deltaY < 0 ? 0.25 : -0.25));
+  }, { passive: false });
+
+  // 点击空白处（未缩放时）关闭
+  stage.addEventListener("click", (e) => {
+    if (e.target === stage && !lbPanning && lbScale === 1) closeLightbox();
+  });
+
+  $("zoomInBtn").addEventListener("click", () => setLbScale(lbScale + 0.5));
+  $("zoomOutBtn").addEventListener("click", () => setLbScale(lbScale - 0.5));
+  $("zoomResetBtn").addEventListener("click", () => setLbScale(1));
+  $("lightboxClose").addEventListener("click", closeLightbox);
+  $("lightbox").addEventListener("click", (e) => {
+    if (e.target === $("lightbox") && lbScale === 1) closeLightbox();
+  });
+  document.addEventListener("keydown", (e) => {
+    if ($("lightbox").classList.contains("hidden")) return;
+    if (e.key === "Escape") closeLightbox();
+    else if (e.key === "+" || e.key === "=") setLbScale(lbScale + 0.5);
+    else if (e.key === "-") setLbScale(lbScale - 0.5);
+    else if (e.key === "0") setLbScale(1);
+  });
+})();
+
+// =========================================================
 //  事件绑定
 // =========================================================
 $("adminBtn").addEventListener("click", openLogin);
@@ -477,13 +653,26 @@ $("loginCancel").addEventListener("click", closeLogin);
 $("loginOk").addEventListener("click", doLogin);
 $("addCatBtn").addEventListener("click", addCategory);
 $("addModelBtn").addEventListener("click", addModel);
-$("uploadBtn").addEventListener("click", () => $("fileInput").click());
+$("uploadBtn").addEventListener("click", openUpload);
 $("menuBtn").addEventListener("click", openDrawer);
 drawerMask.addEventListener("click", closeDrawer);
-fabBtn.addEventListener("click", () => $("fileInput").click());
+fabBtn.addEventListener("click", openUpload);
+$("pickBtn").addEventListener("click", () => $("fileInput").click());
+$("uploadCancel").addEventListener("click", closeUpload);
+$("uploadAllBtn").addEventListener("click", uploadAll);
 $("fileInput").addEventListener("change", (e) => {
-  if (e.target.files.length) uploadMedia(e.target.files);
+  if (e.target.files.length) addFiles(e.target.files);
   e.target.value = "";
+});
+// 拖拽上传
+["dragenter", "dragover"].forEach((ev) =>
+  $("dropZone").addEventListener(ev, (e) => { e.preventDefault(); $("dropZone").classList.add("dragover"); })
+);
+["dragleave", "drop"].forEach((ev) =>
+  $("dropZone").addEventListener(ev, (e) => { e.preventDefault(); $("dropZone").classList.remove("dragover"); })
+);
+$("dropZone").addEventListener("drop", (e) => {
+  if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
 });
 $("search").addEventListener("input", (e) => {
   filterText = e.target.value;
