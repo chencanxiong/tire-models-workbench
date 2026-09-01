@@ -1,4 +1,4 @@
-# 轮胎型号工作台（tire-models-workbench）
+# 轮胎素材库（tire-models-workbench）
 
 一个部署在 GitHub Pages 上的轮胎型号资料库：每个型号可关联多张照片与视频，支持**多设备访问、查询、下载**；管理员可新增 / 删除（分类、型号、图片、视频）。
 
