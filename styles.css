@@ -145,7 +145,7 @@ body {
   display: flex;
   flex-direction: column;
 }
-.media-thumb { width: 100%; height: 160px; background: #000; display: flex; align-items: center; justify-content: center; }
+.media-thumb { width: 100%; height: 160px; background: linear-gradient(135deg,#eef1f5,#e2e7ee); display: flex; align-items: center; justify-content: center; }
 .media-thumb img, .media-thumb video { width: 100%; height: 100%; object-fit: cover; }
 .media-thumb .play-badge { position: absolute; }
 .media-body { padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
