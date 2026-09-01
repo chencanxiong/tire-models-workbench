@@ -20,8 +20,17 @@ const API = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}`;
 const GH_TOKEN = (window.APP_CONFIG && window.APP_CONFIG.GITHUB_TOKEN) || "";
 const PROXY_URL = (window.APP_CONFIG && window.APP_CONFIG.PROXY_URL) || "";
 const ADMIN_PASSWORD = (window.APP_CONFIG && window.APP_CONFIG.ADMIN_PASSWORD) || "";
-// 媒体直连 raw.githubusercontent.com：push 后几秒即可见，绕过 GitHub Pages 构建延迟（避免上传后黑屏）。
-const MEDIA_BASE_RAW = "https://raw.githubusercontent.com/chencanxiong/tire-models-workbench/main/";
+// 媒体地址：使用国内可访问的 CDN（jsDelivr）优先，GitHub Pages 与 raw 作为回退。
+// 注意：raw.githubusercontent.com 在中国大陆移动网络常被拦截/限速，直连会导致手机端黑屏。
+const MEDIA_BASES = [
+  "https://cdn.jsdelivr.net/gh/chencanxiong/tire-models-workbench@main/", // 国内可达 CDN，优先
+  "https://chencanxiong.github.io/tire-models-workbench/",               // GitHub Pages，回退
+  "https://raw.githubusercontent.com/chencanxiong/tire-models-workbench/main/" // 最后兜底
+];
+function absMediaUrl(path, baseIdx) {
+  const p = (path || "").startsWith("http") ? path : MEDIA_BASES[baseIdx || 0] + path;
+  return p;
+}
 
 // ---------- 运行时状态 ----------
 let data = { categories: [] };
@@ -309,17 +318,25 @@ function renderContent() {
     thumb.className = "media-thumb";
     if (item.type === "video") {
       const v = document.createElement("video");
-      v.src = MEDIA_BASE_RAW + item.path; v.muted = true; v.playsInline = true; v.preload = "metadata";
+      v.muted = true; v.playsInline = true; v.preload = "metadata"; v.className = "media-img";
+      let vbi = 0;
+      v.onerror = function () {
+        if (vbi < MEDIA_BASES.length - 1) { vbi++; v.src = absMediaUrl(item.path, vbi); }
+      };
       // 强制渲染首帧，避免缩略图黑屏
       v.addEventListener("loadeddata", () => { try { v.currentTime = 0.1; } catch (_) {} });
+      v.src = absMediaUrl(item.path, 0);
       thumb.appendChild(v);
     } else {
       const img = document.createElement("img");
-      img.src = MEDIA_BASE_RAW + item.path; img.loading = "lazy"; img.alt = item.name;
-      img.addEventListener("error", function onErr() {
-        if (!img.dataset.triedPages) { img.dataset.triedPages = "1"; img.src = item.path; }
+      img.loading = "lazy"; img.alt = item.name;
+      img.className = "media-img";
+      let bi = 0;
+      img.onerror = function () {
+        if (bi < MEDIA_BASES.length - 1) { bi++; img.src = absMediaUrl(item.path, bi); }
         else { const t = document.createElement("div"); t.className = "load-fail"; t.textContent = "⚠ 同步中，刷新重试"; img.replaceWith(t); }
-      });
+      };
+      img.src = absMediaUrl(item.path, 0);
       thumb.appendChild(img);
     }
     card.appendChild(thumb);
@@ -601,22 +618,39 @@ function showLbItem() {
     img.classList.add("hidden");
     video.classList.remove("hidden");
     video.preload = "auto";
-    // 移动端禁止非静音自动播放，改为显示首帧 + 控件，避免“黑屏未播放”
-    video.addEventListener("loadeddata", () => { try { video.currentTime = 0.1; } catch (_) {} }, { once: true });
-    video.src = MEDIA_BASE_RAW + item.path;
+    video.muted = true; // 移动端仅允许静音自动播放，用户可用控件取消静音
+    $("lbLoading").classList.remove("hidden");
+    $("lbError").classList.add("hidden");
+    // 移动端禁止非静音自动播放：先静音自动播放首帧，用户可用控件暂停/取消静音
+    let vbi = 0;
+    video.onerror = function () {
+      if (vbi < MEDIA_BASES.length - 1) { vbi++; video.src = absMediaUrl(item.path, vbi); }
+      else {
+        $("lbLoading").classList.add("hidden");
+        $("lbError").textContent = "⚠ 视频无法播放：可能为手机不支持的格式（如 HEVC/.mov），请在电脑端查看，或上传 H.264 编码的 MP4。";
+        $("lbError").classList.remove("hidden");
+      }
+    };
+    video.addEventListener("loadeddata", () => {
+      try { video.currentTime = 0.1; } catch (_) {}
+      $("lbLoading").classList.add("hidden");
+      video.play && video.play().catch(() => {});
+    }, { once: true });
+    video.src = absMediaUrl(item.path, 0);
   } else {
     video.pause && video.pause();
     video.removeAttribute("src");
     video.classList.add("hidden");
     img.classList.remove("hidden");
     img.removeAttribute("data-tried-pages");
+    let bi = 0;
     img.onload = () => { $("lbLoading").classList.add("hidden"); };
     img.onerror = () => {
-      if (!img.dataset.triedPages) { img.dataset.triedPages = "1"; img.src = item.path; }
+      if (bi < MEDIA_BASES.length - 1) { bi++; img.src = absMediaUrl(item.path, bi); }
       else { $("lbLoading").classList.add("hidden"); $("lbError").classList.remove("hidden"); }
     };
     $("lbLoading").classList.remove("hidden");
-    img.src = MEDIA_BASE_RAW + item.path;
+    img.src = absMediaUrl(item.path, 0);
   }
   $("lightbox").classList.remove("hidden");
   $("lightboxTitle").textContent = (item.type === "video" ? "🎬 " : "🖼 ") + item.name;
