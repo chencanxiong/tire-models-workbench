@@ -47,7 +47,6 @@
           <div class="panel-actions">
             <button id="addModelBtn" class="btn btn-primary hidden">＋ 添加型号</button>
             <button id="uploadBtn" class="btn btn-primary hidden">⬆ 上传图片/视频</button>
-            <input id="fileInput" type="file" accept="image/*,video/*" multiple class="hidden" />
           </div>
         </div>
         <div id="mediaGrid" class="media-grid"></div>
@@ -58,6 +57,46 @@
 
   <!-- 手机端悬浮上传按钮 -->
   <button id="fabBtn" class="fab hidden" aria-label="上传图片/视频">＋</button>
+
+  <!-- 批量上传弹窗 -->
+  <div id="uploadModal" class="modal hidden">
+    <div class="modal-box upload-box">
+      <h3>批量上传图片 / 视频</h3>
+      <p class="modal-tip">支持一次选择多张图片或视频，单文件建议 ≤ 25MB。可直接拖拽文件到下方区域，或点击「选择文件」。</p>
+      <div id="dropZone" class="drop-zone">
+        <div class="drop-inner"><span class="drop-ico">📂</span> 拖拽文件到此处，或</div>
+        <button id="pickBtn" class="btn btn-ghost">选择文件</button>
+        <input id="fileInput" type="file" accept="image/*,video/*" multiple class="hidden" />
+      </div>
+      <div id="uploadList" class="upload-list"></div>
+      <div id="progressWrap" class="progress-wrap hidden">
+        <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+        <div id="progressText" class="progress-text"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="uploadCancel" class="btn btn-ghost">关闭</button>
+        <button id="uploadAllBtn" class="btn btn-primary" disabled>上传 0 个文件</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片 / 视频查看大图（灯箱） -->
+  <div id="lightbox" class="lightbox hidden">
+    <div class="lightbox-bar">
+      <span id="lightboxTitle" class="lightbox-title"></span>
+      <div class="lightbox-tools">
+        <button id="zoomOutBtn" class="lb-btn" title="缩小">－</button>
+        <span id="zoomLabel" class="zoom-label">100%</span>
+        <button id="zoomInBtn" class="lb-btn" title="放大">＋</button>
+        <button id="zoomResetBtn" class="lb-btn" title="还原大小">⟲</button>
+        <button id="lightboxClose" class="lb-btn lb-close" title="关闭">✕</button>
+      </div>
+    </div>
+    <div id="lightboxStage" class="lightbox-stage">
+      <img id="lightboxImg" class="lightbox-media hidden" alt="" />
+      <video id="lightboxVideo" class="lightbox-media hidden" controls playsinline></video>
+    </div>
+  </div>
 
   <!-- 管理员登录弹窗 -->
   <div id="loginModal" class="modal hidden">
