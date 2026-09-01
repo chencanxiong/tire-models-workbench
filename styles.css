@@ -368,3 +368,11 @@ body {
 }
 .lightbox-media:active { cursor: grabbing; }
 .lightbox-stage { cursor: zoom-in; }
+.lb-loading, .lb-error {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 14px; padding: 10px 16px; border-radius: 10px; z-index: 3; pointer-events: none;
+  max-width: 80%; text-align: center;
+}
+.lb-loading { color: #cdd5e0; background: rgba(20,26,38,.7); }
+.lb-error { color: #ffd479; background: rgba(40,28,10,.85); }
+.load-fail { color: #ffd479; font-size: 12px; text-align: center; padding: 8px; }
