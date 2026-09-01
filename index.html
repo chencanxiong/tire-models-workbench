@@ -62,7 +62,7 @@
   <div id="uploadModal" class="modal hidden">
     <div class="modal-box upload-box">
       <h3>批量上传图片 / 视频</h3>
-      <p class="modal-tip">支持一次选择多张图片或视频，单文件建议 ≤ 25MB。可直接拖拽文件到下方区域，或点击「选择文件」。</p>
+      <p class="modal-tip">支持一次选择多张图片或视频，单文件建议 ≤ 25MB。视频（如 iPhone 的 .mov/HEVC）上传时会自动转为通用格式，手机/电脑都能播放。可直接拖拽文件到下方区域，或点击「选择文件」。</p>
       <div id="dropZone" class="drop-zone">
         <div class="drop-inner"><span class="drop-ico">📂</span> 拖拽文件到此处，或</div>
         <button id="pickBtn" class="btn btn-ghost">选择文件</button>
@@ -72,6 +72,7 @@
       <div id="progressWrap" class="progress-wrap hidden">
         <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
         <div id="progressText" class="progress-text"></div>
+        <div id="uploadStatus" class="upload-status"></div>
       </div>
       <div class="modal-actions">
         <button id="uploadCancel" class="btn btn-ghost">关闭</button>
