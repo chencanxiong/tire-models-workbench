@@ -138,7 +138,44 @@
         {
           "id": "f7feb835-902e-4f7c-a7fa-7c443ba58496",
           "name": "米其林2354518 e聆悦",
-          "media": []
+          "media": [
+            {
+              "id": "4b55b89f-2c94-45c0-8034-edeb4d1c06f8",
+              "name": "微信图片_20260828213651_59_74.png",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/f7feb835-902e-4f7c-a7fa-7c443ba58496/92dc8c53-6d06-4367-a33c-92fbe44309e9.png"
+            },
+            {
+              "id": "8eca5814-515d-4b78-930f-caba5df8ab50",
+              "name": "微信图片_20260828213652_60_74.png",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/f7feb835-902e-4f7c-a7fa-7c443ba58496/9f1a8c17-4c8f-4020-8db8-f41e9d6a67e6.png"
+            },
+            {
+              "id": "b2bf8e25-4f10-4387-b6b9-f245ba33a541",
+              "name": "微信图片_20260828213652_61_74.png",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/f7feb835-902e-4f7c-a7fa-7c443ba58496/8d8155e2-8dd7-4e39-9d4d-d21d0d4c55b9.png"
+            },
+            {
+              "id": "dde92a4e-0e50-4e96-9fc0-459d10837582",
+              "name": "微信图片_20260828213653_62_74.png",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/f7feb835-902e-4f7c-a7fa-7c443ba58496/6306f4f9-0410-4579-bf62-b277c8d9a19b.png"
+            },
+            {
+              "id": "62d5a501-8582-4ef9-80a0-05a96eae434a",
+              "name": "微信图片_20260828213649_57_74.png",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/f7feb835-902e-4f7c-a7fa-7c443ba58496/98c9a54e-2040-4c26-a091-55be3e628f29.png"
+            },
+            {
+              "id": "dc23dcbc-b848-4446-91ce-efe3a46890ec",
+              "name": "微信图片_20260828213650_58_74.png",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/f7feb835-902e-4f7c-a7fa-7c443ba58496/4c6e372b-c402-449f-ad65-02019154db48.png"
+            }
+          ]
         }
       ]
     },
