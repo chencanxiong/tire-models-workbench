@@ -41,6 +41,9 @@ let currentModelId = null;
 let filterText = "";
 let dragState = null; // 拖拽排序状态：{ catId, modelId }
 
+// 管理员登录状态持久化键：设备登录后写入 localStorage，重开页面仍保持登录
+const ADMIN_SESSION_KEY = "tire_admin_session_v1";
+
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
 const sidebarList = $("sidebarList");
@@ -74,6 +77,19 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[c]));
+}
+
+// 归一化：转小写并去掉空格、斜杠、点、连字符等，用于「智能」模糊匹配
+// 例如「265 65」可匹配「265/65R17」，「米其林」可匹配「米其林轮胎」
+function norm(s) {
+  return String(s == null ? "" : s).toLowerCase().replace(/[\s/.\-_×xX]/g, "");
+}
+
+// 判断某个型号是否命中搜索词（型号名 或 其下任一媒体文件名）
+function modelMatchesQuery(m, ft) {
+  if (!ft) return true;
+  if (norm(m.name).includes(ft)) return true;
+  return (m.media || []).some((mm) => norm(mm.name).includes(ft));
 }
 
 function safeName(name) {
@@ -214,10 +230,10 @@ function updateFab() {
 }
 
 function renderSidebar() {
-  const ft = filterText.trim().toLowerCase();
+  const ft = norm(filterText.trim());
   const cats = data.categories.filter(
-    (c) => !ft || c.name.toLowerCase().includes(ft) ||
-      c.models.some((m) => m.name.toLowerCase().includes(ft))
+    (c) => !ft || norm(c.name).includes(ft) ||
+      c.models.some((m) => modelMatchesQuery(m, ft))
   );
   sidebarEmpty.classList.toggle("hidden", cats.length > 0);
   sidebarList.innerHTML = "";
@@ -257,7 +273,7 @@ function renderSidebar() {
     const models = document.createElement("div");
     models.className = "models";
     cat.models
-      .filter((m) => !ft || m.name.toLowerCase().includes(ft))
+      .filter((m) => modelMatchesQuery(m, ft))
       .forEach((m) => {
         const mEl = document.createElement("div");
         mEl.className = "model-item" + (currentModelId === m.id ? " active" : "");
@@ -749,6 +765,7 @@ async function doLogin() {
     return;
   }
   isAdmin = true;
+  try { localStorage.setItem(ADMIN_SESSION_KEY, "1"); } catch (_) {}
   closeLogin();
   render();
   toast("已进入管理员模式");
@@ -756,8 +773,100 @@ async function doLogin() {
 
 function doLogout() {
   isAdmin = false;
+  try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch (_) {}
   render();
   toast("已退出管理员模式");
+}
+
+// =========================================================
+//  智能搜索：实时下拉结果（品牌 / 型号 / 规格 + 媒体文件名）
+// =========================================================
+function highlight(text, q) {
+  const safe = escapeHtml(text);
+  const qe = String(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!qe) return safe;
+  try {
+    return safe.replace(new RegExp("(" + qe + ")", "ig"), "<mark>$1</mark>");
+  } catch (_) { return safe; }
+}
+
+function hideSearchResults() {
+  $("searchResults").classList.add("hidden");
+}
+
+// 选中搜索结果：跳转并清空搜索词，让侧边栏恢复该分类完整视图
+function selectSearchResult(catId, modelId) {
+  currentCatId = catId;
+  currentModelId = modelId || null;
+  $("search").value = "";
+  filterText = "";
+  hideSearchResults();
+  try { $("search").blur(); } catch (_) {}
+  render();
+  closeDrawer();
+  const c = document.querySelector(".content");
+  if (c) c.scrollTop = 0;
+}
+
+function runSearch() {
+  const q = filterText.trim();
+  const resultsEl = $("searchResults");
+  // 侧边栏同步过滤（保持原有行为）
+  renderSidebar();
+  if (!q) { resultsEl.classList.add("hidden"); resultsEl.innerHTML = ""; return; }
+
+  const nq = norm(q);
+  const catHits = [];
+  const modelHits = [];
+  data.categories.forEach((cat) => {
+    if (norm(cat.name).includes(nq)) catHits.push(cat);
+    cat.models.forEach((m) => {
+      const byName = norm(m.name).includes(nq);
+      const byMedia = !byName && (m.media || []).some((mm) => norm(mm.name).includes(nq));
+      if (byName || byMedia) modelHits.push({ cat, model: m, byMedia });
+    });
+  });
+
+  if (!catHits.length && !modelHits.length) {
+    resultsEl.innerHTML = `<div class="sr-empty">未找到与「${escapeHtml(q)}」相关的型号 / 规格</div>`;
+    resultsEl.classList.remove("hidden");
+    return;
+  }
+
+  const maxCats = 6, maxModels = 30;
+  let html = "";
+  if (catHits.length) {
+    html += `<div class="sr-group">品牌 / 分类</div>`;
+    catHits.slice(0, maxCats).forEach((c) => {
+      html += `<div class="sr-item sr-cat" data-cat="${c.id}">
+        <span class="sr-ico">🏷️</span>
+        <span class="sr-text">${highlight(c.name, q)}</span>
+        <span class="sr-meta">${c.models.length} 型号</span>
+      </div>`;
+    });
+  }
+  if (modelHits.length) {
+    html += `<div class="sr-group">型号 / 规格</div>`;
+    modelHits.slice(0, maxModels).forEach((h) => {
+      html += `<div class="sr-item sr-model" data-cat="${h.cat.id}" data-model="${h.model.id}">
+        <span class="sr-ico">${h.byMedia ? "📎" : "🛞"}</span>
+        <span class="sr-text">${highlight(h.model.name, q)}</span>
+        <span class="sr-meta">${escapeHtml(h.cat.name)}</span>
+      </div>`;
+    });
+  }
+  if (catHits.length > maxCats || modelHits.length > maxModels) {
+    html += `<div class="sr-more">仅显示部分结果，输入更精确的关键词可缩小范围</div>`;
+  }
+  resultsEl.innerHTML = html;
+  resultsEl.classList.remove("hidden");
+
+  resultsEl.querySelectorAll(".sr-cat").forEach((el) => {
+    el.addEventListener("click", () => selectSearchResult(el.dataset.cat, null));
+  });
+  resultsEl.querySelectorAll(".sr-model").forEach((el) => {
+    el.addEventListener("click", () => selectSearchResult(el.dataset.cat, el.dataset.model));
+  });
 }
 
 // =========================================================
@@ -1022,7 +1131,23 @@ $("dropZone").addEventListener("drop", (e) => {
 });
 $("search").addEventListener("input", (e) => {
   filterText = e.target.value;
-  renderSidebar();
+  runSearch();
+});
+$("search").addEventListener("focus", () => {
+  if (filterText.trim()) runSearch();
+});
+$("search").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    $("search").value = ""; filterText = ""; hideSearchResults(); renderSidebar();
+  } else if (e.key === "Enter") {
+    const first = $("searchResults").querySelector(".sr-model") ||
+                  $("searchResults").querySelector(".sr-cat");
+    if (first) first.click();
+  }
+});
+// 点击搜索框以外区域时收起结果下拉
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-wrap")) hideSearchResults();
 });
 
 // 暴露给调试
@@ -1031,4 +1156,8 @@ window.__tire = { CONFIG, loadData };
 // =========================================================
 //  启动
 // =========================================================
+// 恢复已登录设备上的管理员状态（记住登录，重开页面仍保持登录）
+try {
+  if (localStorage.getItem(ADMIN_SESSION_KEY) === "1") isAdmin = true;
+} catch (_) {}
 loadData();
