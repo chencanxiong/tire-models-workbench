@@ -15,10 +15,15 @@
       <h1>轮胎素材库</h1>
     </div>
     <div class="top-actions">
-      <input id="search" type="search" placeholder="搜索型号 / 分类…" autocomplete="off" />
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="智能搜索型号 / 规格…" autocomplete="off" />
+        <div id="searchResults" class="search-results hidden"></div>
+      </div>
       <button id="addCatBtn" class="btn btn-primary hidden">＋ 添加分类</button>
-      <button id="adminBtn" class="btn btn-ghost">管理员登录</button>
-      <button id="logoutBtn" class="btn btn-ghost hidden">退出管理员</button>
+      <div class="admin-zone">
+        <button id="adminBtn" class="btn btn-ghost admin-login">🔐 管理员登录</button>
+        <button id="logoutBtn" class="btn btn-ghost hidden">👤 退出</button>
+      </div>
     </div>
   </header>
 
