@@ -75,7 +75,21 @@
         <div id="progressText" class="progress-text"></div>
         <div id="uploadStatus" class="upload-status"></div>
       </div>
-      <div class="modal-actions">
+
+      <!-- 上传完成界面 -->
+      <div id="uploadDone" class="upload-done hidden">
+        <div class="done-ico">✅</div>
+        <h4 id="doneTitle">上传完成</h4>
+        <p id="doneSummary" class="done-summary"></p>
+        <ul id="doneList" class="done-list"></ul>
+        <p class="done-tip">文件已保存并同步到云端，稍候几秒刷新即可在型号中查看。</p>
+        <div class="modal-actions">
+          <button id="doneAgainBtn" class="btn btn-ghost">再传一批</button>
+          <button id="doneCloseBtn" class="btn btn-primary">查看素材</button>
+        </div>
+      </div>
+
+      <div id="uploadActions" class="modal-actions">
         <button id="uploadCancel" class="btn btn-ghost">关闭</button>
         <button id="uploadAllBtn" class="btn btn-primary" disabled>上传 0 个文件</button>
       </div>
