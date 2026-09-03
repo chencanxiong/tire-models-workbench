@@ -180,7 +180,14 @@
         {
           "id": "669cc5a1-98da-4639-ace3-636bd347649e",
           "name": "米其林2253519",
-          "media": []
+          "media": [
+            {
+              "id": "d334a697-ad8b-4b0a-9ebe-0b5591154728",
+              "name": "1000053044.jpg",
+              "type": "image",
+              "path": "media/b991f98a-6751-4be8-aa63-60e6817de2f2/669cc5a1-98da-4639-ace3-636bd347649e/ae4b9c1e-e140-4ef8-a7b9-4f2f303eda3e.jpg"
+            }
+          ]
         }
       ]
     },
