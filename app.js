@@ -39,6 +39,7 @@ let isAdmin = false;     // 管理员身份由密码解锁（UI 门禁）
 let currentCatId = null;
 let currentModelId = null;
 let filterText = "";
+let dragState = null; // 拖拽排序状态：{ catId, modelId }
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -218,21 +219,28 @@ function renderSidebar() {
     const open = currentCatId === cat.id;
     const catEl = document.createElement("div");
     catEl.className = "cat-item" + (open ? " open" : "");
+    catEl.dataset.catId = cat.id;
 
     const head = document.createElement("div");
     head.className = "cat-head";
-    head.innerHTML = `<span class="cat-toggle">▶</span><span class="cat-name"></span>`;
+    head.innerHTML = `<span class="cat-toggle">▶</span><span class="cat-ico">🏷️</span><span class="cat-name"></span>`;
     head.querySelector(".cat-name").textContent = cat.name;
     head.addEventListener("click", (e) => {
-      if (e.target.closest(".cat-del")) return;
+      if (e.target.closest(".cat-del") || e.target.closest(".cat-edit")) return;
       currentCatId = (currentCatId === cat.id) ? null : cat.id;
       if (!cat.models.length) currentModelId = null;
       render();
     });
     if (isAdmin) {
+      const edit = document.createElement("button");
+      edit.className = "icon-btn cat-edit";
+      edit.title = "重命名品牌";
+      edit.textContent = "✏️";
+      edit.addEventListener("click", (e) => { e.stopPropagation(); renameCategory(cat); });
+      head.appendChild(edit);
       const del = document.createElement("button");
       del.className = "icon-btn cat-del";
-      del.title = "删除该分类（含下所有型号与媒体）";
+      del.title = "删除该品牌（含下所有型号与媒体）";
       del.textContent = "🗑";
       del.addEventListener("click", (e) => { e.stopPropagation(); deleteCategory(cat); });
       head.appendChild(del);
@@ -246,8 +254,20 @@ function renderSidebar() {
       .forEach((m) => {
         const mEl = document.createElement("div");
         mEl.className = "model-item" + (currentModelId === m.id ? " active" : "");
-        mEl.innerHTML = `<span class="model-name"></span>`;
-        mEl.querySelector(".model-name").textContent = m.name;
+        mEl.dataset.modelId = m.id;
+        if (isAdmin) {
+          mEl.draggable = true;
+          mEl.classList.add("draggable");
+          const handle = document.createElement("span");
+          handle.className = "drag-handle";
+          handle.textContent = "⠿";
+          handle.title = "拖动调整顺序";
+          mEl.appendChild(handle);
+        }
+        const name = document.createElement("span");
+        name.className = "model-name";
+        name.textContent = m.name;
+        mEl.appendChild(name);
         mEl.addEventListener("click", () => {
           currentCatId = cat.id;
           currentModelId = m.id;
@@ -255,12 +275,42 @@ function renderSidebar() {
           closeDrawer();
         });
         if (isAdmin) {
+          const edit = document.createElement("button");
+          edit.className = "icon-btn model-edit";
+          edit.title = "重命名型号";
+          edit.textContent = "✏️";
+          edit.addEventListener("click", (e) => { e.stopPropagation(); renameModel(cat, m); });
+          mEl.appendChild(edit);
           const del = document.createElement("button");
           del.className = "icon-btn model-del";
           del.title = "删除该型号（含下所有媒体）";
           del.textContent = "🗑";
           del.addEventListener("click", (e) => { e.stopPropagation(); deleteModel(cat, m); });
           mEl.appendChild(del);
+
+          // 拖拽排序（仅限同品牌内，避免跨品牌移动导致媒体路径失效）
+          mEl.addEventListener("dragstart", (e) => {
+            dragState = { catId: cat.id, modelId: m.id };
+            mEl.classList.add("dragging");
+            try { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+          });
+          mEl.addEventListener("dragend", () => {
+            mEl.classList.remove("dragging");
+            document.querySelectorAll(".model-item.drag-over").forEach((el) => el.classList.remove("drag-over"));
+            dragState = null;
+          });
+          mEl.addEventListener("dragover", (e) => {
+            if (!dragState || dragState.catId !== cat.id) return;
+            e.preventDefault();
+            mEl.classList.add("drag-over");
+          });
+          mEl.addEventListener("dragleave", () => mEl.classList.remove("drag-over"));
+          mEl.addEventListener("drop", (e) => {
+            if (!dragState || dragState.catId !== cat.id) return;
+            e.preventDefault();
+            mEl.classList.remove("drag-over");
+            reorderModel(cat, dragState.modelId, m.id);
+          });
         }
         models.appendChild(mEl);
       });
@@ -391,6 +441,44 @@ async function addModel() {
   await saveData(`添加型号：${name}`);
   await loadData();
   toast("型号已添加");
+}
+
+// 同品牌内拖动调整型号顺序
+async function reorderModel(cat, fromId, toId) {
+  if (fromId === toId || !cat) return;
+  const fromIdx = cat.models.findIndex((m) => m.id === fromId);
+  if (fromIdx < 0) return;
+  const [moved] = cat.models.splice(fromIdx, 1);
+  const toIdx = cat.models.findIndex((m) => m.id === toId);
+  if (toIdx < 0) cat.models.push(moved);
+  else cat.models.splice(toIdx, 0, moved);
+  await saveData(`调整型号顺序：${cat.name}`);
+  await loadData();
+  toast("顺序已更新");
+}
+
+// 重命名品牌（仅改名称字段，媒体文件夹以 id 为准，不受影响）
+async function renameCategory(cat) {
+  const name = prompt("修改品牌名称：", cat.name);
+  if (name === null) return;
+  const t = name.trim();
+  if (!t || t === cat.name) return;
+  cat.name = t;
+  await saveData(`重命名品牌为：${t}`);
+  await loadData();
+  toast("品牌已重命名");
+}
+
+// 重命名型号（仅改名称字段，媒体文件夹以 id 为准，不受影响）
+async function renameModel(cat, model) {
+  const name = prompt("修改型号名称：", model.name);
+  if (name === null) return;
+  const t = name.trim();
+  if (!t || t === model.name) return;
+  model.name = t;
+  await saveData(`重命名型号为：${t}`);
+  await loadData();
+  toast("型号已重命名");
 }
 
 // ---------- 批量上传（弹窗 + 拖拽 + 进度） ----------
