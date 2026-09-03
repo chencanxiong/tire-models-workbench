@@ -494,6 +494,9 @@ function openUpload() {
   const model = cat && currentModelId && findModel(cat.id, currentModelId);
   if (!model) { toast("请先在左侧选择一个型号", true); return; }
   $("progressWrap").classList.add("hidden");
+  $("uploadDone").classList.add("hidden");
+  $("uploadActions").classList.remove("hidden");
+  $("uploadStatus").textContent = "";
   renderUploadList();
   $("uploadModal").classList.remove("hidden");
   pushOverlay("upload");
@@ -616,6 +619,8 @@ async function uploadAll() {
   $("progressWrap").classList.remove("hidden");
   const total = pendingFiles.length;
   let done = 0;
+  const okList = [];
+  const failList = [];
   for (const file of pendingFiles) {
     let uploadFile = file;
     // 视频：先在浏览器内转为通用 H.264 MP4，确保手机/电脑都能播放
@@ -641,7 +646,9 @@ async function uploadAll() {
       const b64 = await fileToBase64(uploadFile);
       await putFile(path, b64, `上传 ${uploadFile.name} 到 ${model.name}`);
       model.media.push({ id: uid(), name: file.name, type, path });
+      okList.push(file.name);
     } catch (e) {
+      failList.push(file.name);
       toast(`上传失败：${file.name} (${e.message})`, true);
     }
     done++;
@@ -650,10 +657,32 @@ async function uploadAll() {
   }
   await saveData(`批量上传 ${total} 个文件到 ${model.name}`);
   await loadData();
-  toast(`已上传 ${done} 个文件，正在同步到云端，稍候刷新即可查看`);
   pendingFiles = [];
   $("progressWrap").classList.add("hidden");
-  closeUpload();
+  showUploadDone(okList, failList);
+}
+
+// 上传完成界面：列出成功 / 失败文件，并显示明确结果
+function showUploadDone(okList, failList) {
+  const total = okList.length + failList.length;
+  $("uploadActions").classList.add("hidden");
+  $("doneSummary").textContent =
+    `共 ${total} 个文件，成功 ${okList.length} 个` + (failList.length ? `，失败 ${failList.length} 个` : "");
+  const list = $("doneList");
+  list.innerHTML = "";
+  okList.forEach((n) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="ok">✓</span><span></span>`;
+    li.querySelector("span:last-child").textContent = n;
+    list.appendChild(li);
+  });
+  failList.forEach((n) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="bad">✕</span><span></span>`;
+    li.querySelector("span:last-child").textContent = n + "（上传失败）";
+    list.appendChild(li);
+  });
+  $("uploadDone").classList.remove("hidden");
 }
 
 async function deleteMedia(cat, model, item) {
@@ -969,6 +998,14 @@ fabBtn.addEventListener("click", openUpload);
 $("pickBtn").addEventListener("click", () => $("fileInput").click());
 $("uploadCancel").addEventListener("click", closeUpload);
 $("uploadAllBtn").addEventListener("click", uploadAll);
+// 上传完成界面按钮
+$("doneCloseBtn").addEventListener("click", closeUpload);
+$("doneAgainBtn").addEventListener("click", () => {
+  $("uploadDone").classList.add("hidden");
+  $("uploadActions").classList.remove("hidden");
+  pendingFiles = [];
+  renderUploadList();
+});
 $("fileInput").addEventListener("change", (e) => {
   if (e.target.files.length) addFiles(e.target.files);
   e.target.value = "";
