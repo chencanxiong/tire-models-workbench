@@ -69,6 +69,13 @@ function uid() {
     "id-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+// 简单 HTML 转义，防止分类/型号名注入脚本
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
 function safeName(name) {
   return name.replace(/[^\w.\-一-龥]+/g, "_").slice(0, 80);
 }
@@ -323,37 +330,34 @@ function renderContent() {
   const cat = currentCatId && findCat(currentCatId);
   const model = cat && currentModelId && findModel(cat.id, currentModelId);
 
+  // 状态 1：未选任何品牌 —— 整块内容区显示引导
   if (!cat) {
     contentPanel.classList.add("hidden");
     contentEmpty.classList.remove("hidden");
+    contentEmpty.innerHTML =
+      `<p>👈 请在左侧选择品牌与型号查看照片 / 视频</p>
+       <p class="sub">支持多设备访问 · 可查询 · 可下载</p>`;
     return;
   }
+
+  // 状态 2：已选品牌但没型号 —— 整块内容区显示占位（不再动态插入节点，避免残留）
+  if (!model) {
+    contentPanel.classList.add("hidden");
+    contentEmpty.classList.remove("hidden");
+    contentEmpty.innerHTML =
+      `<p>「${escapeHtml(cat.name)}」下还没有型号</p>` +
+      (isAdmin
+        ? `<p class="sub">点击右上角「＋ 添加型号」开始录入</p>`
+        : `<p class="sub">等待管理员录入型号</p>`);
+    return;
+  }
+
+  // 状态 3：正常显示型号内容
   contentEmpty.classList.add("hidden");
   contentPanel.classList.remove("hidden");
   $("crumbCat").textContent = cat.name;
-  $("crumbModel").textContent = model ? model.name : "（未选择型号）";
+  $("crumbModel").textContent = model.name;
   $("addModelBtn").classList.toggle("hidden", !isAdmin);
-
-  if (!model) {
-    // 已选中分类但还没选型号
-    $("uploadBtn").classList.add("hidden");
-    $("mediaCount").textContent = "";
-    mediaEmpty.classList.add("hidden");
-    mediaGrid.innerHTML = "";
-    const tip = document.createElement("div");
-    tip.className = "empty-hint big";
-    tip.innerHTML = `<p>该分类下还没有型号</p>` +
-      (isAdmin ? `<p class="sub">点击右上角「＋ 添加型号」开始录入</p>` : `<p class="sub">等待管理员录入型号</p>`);
-    // 替换媒体区占位
-    mediaGrid.parentNode.insertBefore(tip, mediaGrid);
-    const old = mediaGrid.previousElementSibling;
-    if (old && old !== tip && old.classList.contains("empty-hint")) old.remove();
-    return;
-  }
-  // 清理可能的占位
-  const ph = mediaGrid.previousElementSibling;
-  if (ph && ph.classList && ph.classList.contains("empty-hint") && ph !== mediaEmpty) ph.remove();
-
   $("uploadBtn").classList.toggle("hidden", !isAdmin);
 
   const media = model.media || [];
