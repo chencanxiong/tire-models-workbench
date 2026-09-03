@@ -3,20 +3,7 @@
     {
       "id": "2c442b0e-b24e-4b68-bed2-0fce5c9310bf",
       "name": "马牌",
-      "models": [
-        {
-          "id": "1034c8fe-05f4-4343-ac9c-8fce220246bb",
-          "name": "255",
-          "media": [
-            {
-              "id": "459f56c2-8a6e-4f18-a7ef-05b7c3aed2a7",
-              "name": "正面 (1).jpg",
-              "type": "image",
-              "path": "media/2c442b0e-b24e-4b68-bed2-0fce5c9310bf/1034c8fe-05f4-4343-ac9c-8fce220246bb/a0513621-79f8-4404-9ed4-2da6a32a4b75.jpg"
-            }
-          ]
-        }
-      ]
+      "models": []
     },
     {
       "id": "b991f98a-6751-4be8-aa63-60e6817de2f2",
