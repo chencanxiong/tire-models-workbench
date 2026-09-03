@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <button id="menuBtn" class="icon-btn menu-btn" aria-label="菜单">☰</button>
+      <button id="menuBtn" class="icon-btn menu-btn" aria-label="返回品牌列表">🏠</button>
       <span class="logo">🛞</span>
       <h1>轮胎素材库</h1>
     </div>
@@ -29,37 +29,27 @@
 
   <div id="drawerMask" class="drawer-mask hidden"></div>
 
-  <div class="layout">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-title">🏷️ 品牌分类</div>
-      <div id="sidebarList" class="sidebar-list"></div>
-      <div id="sidebarEmpty" class="empty-hint">暂无品牌，管理员可点击右上角「添加分类」。</div>
-    </aside>
-
-    <main class="content">
-      <div id="contentEmpty" class="empty-hint big">
-        <p>👈 请选择分类与型号查看照片 / 视频</p>
-        <p class="sub">支持多设备访问 · 可查询 · 可下载</p>
+  <main class="hub">
+    <nav id="hubNav" class="hub-nav"></nav>
+    <div id="contentPanel" class="content-panel hidden">
+      <div class="crumb">
+        <button id="crumbBrand" class="crumb-link">品牌</button>
+        <span class="sep">/</span>
+        <span id="crumbCat"></span>
+        <span class="sep">/</span>
+        <span id="crumbModel"></span>
       </div>
-
-      <div id="contentPanel" class="content-panel hidden">
-        <div class="crumb">
-          <span id="crumbCat"></span>
-          <span class="sep">/</span>
-          <span id="crumbModel"></span>
+      <div class="panel-head">
+        <div id="mediaCount" class="media-count"></div>
+        <div class="panel-actions">
+          <button id="addModelBtn" class="btn btn-primary hidden">＋ 添加型号</button>
+          <button id="uploadBtn" class="btn btn-primary hidden">⬆ 上传图片/视频</button>
         </div>
-        <div class="panel-head">
-          <div id="mediaCount" class="media-count"></div>
-          <div class="panel-actions">
-            <button id="addModelBtn" class="btn btn-primary hidden">＋ 添加型号</button>
-            <button id="uploadBtn" class="btn btn-primary hidden">⬆ 上传图片/视频</button>
-          </div>
-        </div>
-        <div id="mediaGrid" class="media-grid"></div>
-        <div id="mediaEmpty" class="empty-hint">该型号下还没有图片或视频，管理员可点击「上传图片/视频」。</div>
       </div>
-    </main>
-  </div>
+      <div id="mediaGrid" class="media-grid"></div>
+      <div id="mediaEmpty" class="empty-hint">该型号下还没有图片或视频，管理员可点击「上传图片/视频」。</div>
+    </div>
+  </main>
 
   <!-- 手机端悬浮上传按钮 -->
   <button id="fabBtn" class="fab hidden" aria-label="上传图片/视频">＋</button>
@@ -124,6 +114,7 @@
       <div id="lbError" class="lb-error hidden">⚠ 媒体加载失败，可能云端正在同步，请稍后刷新重试</div>
       <button id="nextBtn" class="nav-btn nav-next hidden" title="下一张（→）">›</button>
     </div>
+    <div id="lbEdgeHint" class="lb-edge-hint hidden"></div>
   </div>
 
   <!-- 管理员登录弹窗 -->
