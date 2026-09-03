@@ -47,6 +47,48 @@ body {
 }
 #search:focus { border-color: var(--primary); }
 
+/* 搜索框 + 智能结果下拉 */
+.search-wrap { position: relative; display: flex; align-items: center; }
+.search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 360px;
+  max-width: 90vw;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.18);
+  z-index: 55;
+  padding: 6px;
+}
+.search-results .sr-group {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  padding: 8px 10px 4px; letter-spacing: .04em;
+}
+.search-results .sr-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.search-results .sr-item:hover { background: #eef3fb; }
+.search-results .sr-ico { flex-shrink: 0; }
+.search-results .sr-text { flex: 1; word-break: break-all; }
+.search-results .sr-meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.search-results .sr-text mark {
+  background: #fff3bf; color: inherit; border-radius: 3px; padding: 0 2px; font-weight: 600;
+}
+.search-results .sr-empty { padding: 14px 12px; color: var(--muted); font-size: 13px; text-align: center; }
+.search-results .sr-more { padding: 8px 10px; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* 右上角管理员区域（与搜索/添加分类视觉区分） */
+.admin-zone {
+  display: flex; align-items: center; gap: 8px;
+  padding-left: 12px; margin-left: 2px; border-left: 1px solid var(--border);
+}
+.admin-login { white-space: nowrap; }
+
 .btn {
   border: 1px solid transparent;
   border-radius: 8px;
@@ -242,6 +284,8 @@ body {
   .top-actions { flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
   #search { flex: 1 1 100%; width: auto; }
   .top-actions .btn { flex: 1 1 auto; text-align: center; justify-content: center; }
+  .admin-zone { border-left: none; padding-left: 0; margin-left: 0; flex: 1 1 100%; justify-content: flex-end; }
+  .search-results { width: 100%; max-width: none; left: 0; right: 0; }
 
   .layout { display: block; }
 
