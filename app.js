@@ -46,13 +46,10 @@ const ADMIN_SESSION_KEY = "tire_admin_session_v1";
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
-const sidebarList = $("sidebarList");
-const sidebarEmpty = $("sidebarEmpty");
-const contentEmpty = $("contentEmpty");
+const hubNav = $("hubNav");
 const contentPanel = $("contentPanel");
 const mediaGrid = $("mediaGrid");
 const mediaEmpty = $("mediaEmpty");
-const sidebarEl = $("sidebar");
 const drawerMask = $("drawerMask");
 const fabBtn = $("fabBtn");
 
@@ -206,8 +203,7 @@ async function loadData() {
 //  渲染
 // =========================================================
 function render() {
-  renderSidebar();
-  renderContent();
+  renderHub();
   // 管理员按钮显隐
   $("addCatBtn").classList.toggle("hidden", !isAdmin);
   $("adminBtn").classList.toggle("hidden", isAdmin);
@@ -215,162 +211,131 @@ function render() {
   updateFab();
 }
 
-// 手机端抽屉开关
-function openDrawer() {
-  sidebarEl.classList.add("open");
-  drawerMask.classList.remove("hidden");
+// 回到品牌总览（菜单居中后，🏠 按钮 / 面包屑「品牌」使用）
+function goHome() {
+  currentCatId = null;
+  currentModelId = null;
+  render();
+  const h = document.querySelector(".hub");
+  if (h) h.scrollTop = 0;
 }
-function closeDrawer() {
-  sidebarEl.classList.remove("open");
-  drawerMask.classList.add("hidden");
-}
+
 // 悬浮上传按钮：仅在管理员且已选中型号时显示
 function updateFab() {
   fabBtn.classList.toggle("hidden", !(isAdmin && !!currentModelId));
 }
 
-function renderSidebar() {
-  const ft = norm(filterText.trim());
-  const cats = data.categories.filter(
-    (c) => !ft || norm(c.name).includes(ft) ||
-      c.models.some((m) => modelMatchesQuery(m, ft))
-  );
-  sidebarEmpty.classList.toggle("hidden", cats.length > 0);
-  sidebarList.innerHTML = "";
-
-  cats.forEach((cat) => {
-    const open = currentCatId === cat.id;
-    const catEl = document.createElement("div");
-    catEl.className = "cat-item" + (open ? " open" : "");
-    catEl.dataset.catId = cat.id;
-
-    const head = document.createElement("div");
-    head.className = "cat-head";
-    head.innerHTML = `<span class="cat-toggle">▶</span><span class="cat-ico">🏷️</span><span class="cat-name"></span>`;
-    head.querySelector(".cat-name").textContent = cat.name;
-    head.addEventListener("click", (e) => {
-      if (e.target.closest(".cat-del") || e.target.closest(".cat-edit")) return;
-      currentCatId = (currentCatId === cat.id) ? null : cat.id;
-      if (!cat.models.length) currentModelId = null;
-      render();
-    });
-    if (isAdmin) {
-      const edit = document.createElement("button");
-      edit.className = "icon-btn cat-edit";
-      edit.title = "重命名品牌";
-      edit.textContent = "✏️";
-      edit.addEventListener("click", (e) => { e.stopPropagation(); renameCategory(cat); });
-      head.appendChild(edit);
-      const del = document.createElement("button");
-      del.className = "icon-btn cat-del";
-      del.title = "删除该品牌（含下所有型号与媒体）";
-      del.textContent = "🗑";
-      del.addEventListener("click", (e) => { e.stopPropagation(); deleteCategory(cat); });
-      head.appendChild(del);
-    }
-    catEl.appendChild(head);
-
-    const models = document.createElement("div");
-    models.className = "models";
-    cat.models
-      .filter((m) => modelMatchesQuery(m, ft))
-      .forEach((m) => {
-        const mEl = document.createElement("div");
-        mEl.className = "model-item" + (currentModelId === m.id ? " active" : "");
-        mEl.dataset.modelId = m.id;
-        if (isAdmin) {
-          mEl.draggable = true;
-          mEl.classList.add("draggable");
-          const handle = document.createElement("span");
-          handle.className = "drag-handle";
-          handle.textContent = "⠿";
-          handle.title = "拖动调整顺序";
-          mEl.appendChild(handle);
-        }
-        const name = document.createElement("span");
-        name.className = "model-name";
-        name.textContent = m.name;
-        mEl.appendChild(name);
-        mEl.addEventListener("click", () => {
-          currentCatId = cat.id;
-          currentModelId = m.id;
-          render();
-          closeDrawer();
-        });
-        if (isAdmin) {
-          const edit = document.createElement("button");
-          edit.className = "icon-btn model-edit";
-          edit.title = "重命名型号";
-          edit.textContent = "✏️";
-          edit.addEventListener("click", (e) => { e.stopPropagation(); renameModel(cat, m); });
-          mEl.appendChild(edit);
-          const del = document.createElement("button");
-          del.className = "icon-btn model-del";
-          del.title = "删除该型号（含下所有媒体）";
-          del.textContent = "🗑";
-          del.addEventListener("click", (e) => { e.stopPropagation(); deleteModel(cat, m); });
-          mEl.appendChild(del);
-
-          // 拖拽排序（仅限同品牌内，避免跨品牌移动导致媒体路径失效）
-          mEl.addEventListener("dragstart", (e) => {
-            dragState = { catId: cat.id, modelId: m.id };
-            mEl.classList.add("dragging");
-            try { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
-          });
-          mEl.addEventListener("dragend", () => {
-            mEl.classList.remove("dragging");
-            document.querySelectorAll(".model-item.drag-over").forEach((el) => el.classList.remove("drag-over"));
-            dragState = null;
-          });
-          mEl.addEventListener("dragover", (e) => {
-            if (!dragState || dragState.catId !== cat.id) return;
-            e.preventDefault();
-            mEl.classList.add("drag-over");
-          });
-          mEl.addEventListener("dragleave", () => mEl.classList.remove("drag-over"));
-          mEl.addEventListener("drop", (e) => {
-            if (!dragState || dragState.catId !== cat.id) return;
-            e.preventDefault();
-            mEl.classList.remove("drag-over");
-            reorderModel(cat, dragState.modelId, m.id);
-          });
-        }
-        models.appendChild(mEl);
-      });
-    catEl.appendChild(models);
-    sidebarList.appendChild(catEl);
-  });
-}
-
-function renderContent() {
+// 主渲染：根据当前导航状态在居中区域显示 品牌 / 型号 / 媒体
+function renderHub() {
   const cat = currentCatId && findCat(currentCatId);
   const model = cat && currentModelId && findModel(cat.id, currentModelId);
 
-  // 状态 1：未选任何品牌 —— 整块内容区显示引导
-  if (!cat) {
-    contentPanel.classList.add("hidden");
-    contentEmpty.classList.remove("hidden");
-    contentEmpty.innerHTML =
-      `<p>👈 请在左侧选择品牌与型号查看照片 / 视频</p>
-       <p class="sub">支持多设备访问 · 可查询 · 可下载</p>`;
+  if (model) {
+    hubNav.classList.add("hidden");
+    contentPanel.classList.remove("hidden");
+    renderMedia(cat, model);
     return;
   }
 
-  // 状态 2：已选品牌但没型号 —— 整块内容区显示占位（不再动态插入节点，避免残留）
-  if (!model) {
-    contentPanel.classList.add("hidden");
-    contentEmpty.classList.remove("hidden");
-    contentEmpty.innerHTML =
-      `<p>「${escapeHtml(cat.name)}」下还没有型号</p>` +
-      (isAdmin
-        ? `<p class="sub">点击右上角「＋ 添加型号」开始录入</p>`
-        : `<p class="sub">等待管理员录入型号</p>`);
-    return;
-  }
+  contentPanel.classList.add("hidden");
+  hubNav.classList.remove("hidden");
 
-  // 状态 3：正常显示型号内容
-  contentEmpty.classList.add("hidden");
-  contentPanel.classList.remove("hidden");
+  if (!cat) renderBrandGrid();
+  else renderModelGrid(cat);
+}
+
+// 品牌总览（居中卡片网格）；点击品牌进入其型号列表
+function renderBrandGrid() {
+  const ft = norm(filterText.trim());
+  const cats = data.categories.filter(
+    (c) => !ft || norm(c.name).includes(ft) || c.models.some((m) => modelMatchesQuery(m, ft))
+  );
+  let html = `<div class="hub-head">
+      <h2 class="hub-title">品牌分类</h2>
+      ${isAdmin ? `<button id="hubAddCat" class="btn btn-primary">＋ 添加分类</button>` : ``}
+    </div>`;
+  if (!cats.length) {
+    html += `<div class="hub-empty">${ft ? `未找到与「${escapeHtml(filterText.trim())}」相关的品牌 / 型号` : `暂无品牌，管理员可点击「＋ 添加分类」`}</div>`;
+  } else {
+    html += `<div class="brand-grid">`;
+    cats.forEach((c) => {
+      html += `<button class="brand-card" data-cat="${c.id}">
+          <span class="bc-ico">🏷️</span>
+          <span class="bc-name">${highlight(c.name, filterText.trim())}</span>
+          <span class="bc-meta">${c.models.length} 个型号</span>
+          ${isAdmin ? `<span class="bc-edit" title="重命名品牌" data-cat="${c.id}">✏️</span><span class="bc-del" title="删除品牌" data-cat="${c.id}">🗑</span>` : ``}
+        </button>`;
+    });
+    html += `</div>`;
+  }
+  hubNav.innerHTML = html;
+
+  hubNav.querySelectorAll(".brand-card").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".bc-edit") || e.target.closest(".bc-del")) return;
+      currentCatId = el.dataset.cat;
+      const c = findCat(currentCatId);
+      if (c && !c.models.length) currentModelId = null;
+      render();
+    });
+  });
+  if (isAdmin) {
+    const add = hubNav.querySelector("#hubAddCat");
+    if (add) add.addEventListener("click", addCategory);
+    hubNav.querySelectorAll(".bc-edit").forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); renameCategory(findCat(el.dataset.cat)); }));
+    hubNav.querySelectorAll(".bc-del").forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); deleteCategory(findCat(el.dataset.cat)); }));
+  }
+}
+
+// 某品牌下的型号列表（点击品牌后进入，居中卡片网格）
+function renderModelGrid(cat) {
+  const ft = norm(filterText.trim());
+  const models = cat.models.filter((m) => modelMatchesQuery(m, ft));
+  let html = `<div class="hub-head">
+      <button class="hub-back" id="hubBack">← 返回品牌</button>
+      <h2 class="hub-title">${escapeHtml(cat.name)}<span class="hub-sub">${models.length} 个型号</span></h2>
+      ${isAdmin ? `<button id="hubAddModel" class="btn btn-primary">＋ 添加型号</button>` : ``}
+    </div>`;
+  if (!models.length) {
+    html += `<div class="hub-empty">${ft ? `未找到匹配的型号` : `该品牌下还没有型号，管理员可点击「＋ 添加型号」`}</div>`;
+  } else {
+    html += `<div class="model-grid">`;
+    models.forEach((m) => {
+      const mc = (m.media || []).length;
+      html += `<button class="model-card" data-model="${m.id}">
+          <span class="mc-ico">🛞</span>
+          <span class="mc-name">${highlight(m.name, filterText.trim())}</span>
+          <span class="mc-meta">${mc} 个文件</span>
+          ${isAdmin ? `<span class="mc-edit" title="重命名型号" data-model="${m.id}">✏️</span><span class="mc-del" title="删除型号" data-model="${m.id}">🗑</span>` : ``}
+        </button>`;
+    });
+    html += `</div>`;
+  }
+  hubNav.innerHTML = html;
+
+  hubNav.querySelector("#hubBack").addEventListener("click", goHome);
+  hubNav.querySelectorAll(".model-card").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".mc-edit") || e.target.closest(".mc-del")) return;
+      currentCatId = cat.id;
+      currentModelId = el.dataset.model;
+      render();
+    });
+  });
+  if (isAdmin) {
+    const add = hubNav.querySelector("#hubAddModel");
+    if (add) add.addEventListener("click", addModel);
+    hubNav.querySelectorAll(".mc-edit").forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); renameModel(cat, findModel(cat.id, el.dataset.model)); }));
+    hubNav.querySelectorAll(".mc-del").forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); deleteModel(cat, findModel(cat.id, el.dataset.model)); }));
+  }
+}
+
+// 型号媒体展示（复用原有卡片渲染逻辑）
+function renderMedia(cat, model) {
   $("crumbCat").textContent = cat.name;
   $("crumbModel").textContent = model.name;
   $("addModelBtn").classList.toggle("hidden", !isAdmin);
@@ -803,16 +768,15 @@ function selectSearchResult(catId, modelId) {
   hideSearchResults();
   try { $("search").blur(); } catch (_) {}
   render();
-  closeDrawer();
-  const c = document.querySelector(".content");
+  const c = document.querySelector(".hub");
   if (c) c.scrollTop = 0;
 }
 
 function runSearch() {
   const q = filterText.trim();
   const resultsEl = $("searchResults");
-  // 侧边栏同步过滤（保持原有行为）
-  renderSidebar();
+  // 居中导航同步过滤
+  renderHub();
   if (!q) { resultsEl.classList.add("hidden"); resultsEl.innerHTML = ""; return; }
 
   const nq = norm(q);
@@ -962,11 +926,28 @@ function showLbItem() {
   applyLbTransform();
 }
 
-// 切换：delta = -1 上一张，1 下一张（循环）
+// 切换：delta = -1 上一张，1 下一张（到首/尾停下并提示，不再循环）
 function lbStep(delta) {
   if (lbList.length < 2) return;
-  lbIndex = (lbIndex + delta + lbList.length) % lbList.length;
+  const next = lbIndex + delta;
+  if (next < 0) { showLbEdgeHint("已经是第一张了"); return; }
+  if (next > lbList.length - 1) { showLbEdgeHint("已经是最后一张了"); return; }
+  lbIndex = next;
   showLbItem();
+}
+
+let _edgeHintTimer = null;
+function showLbEdgeHint(msg) {
+  const el = $("lbEdgeHint");
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove("hidden");
+  el.classList.add("show");
+  clearTimeout(_edgeHintTimer);
+  _edgeHintTimer = setTimeout(() => {
+    el.classList.remove("show");
+    el.classList.add("hidden");
+  }, 1100);
 }
 
 function hideLightbox() {
@@ -1101,9 +1082,11 @@ $("loginOk").addEventListener("click", doLogin);
 $("addCatBtn").addEventListener("click", addCategory);
 $("addModelBtn").addEventListener("click", addModel);
 $("uploadBtn").addEventListener("click", openUpload);
-$("menuBtn").addEventListener("click", openDrawer);
-drawerMask.addEventListener("click", closeDrawer);
+$("menuBtn").addEventListener("click", goHome);
 fabBtn.addEventListener("click", openUpload);
+// 面包屑：点击「品牌」回到品牌总览；点击品牌名回到该品牌型号列表
+$("crumbBrand").addEventListener("click", goHome);
+$("crumbCat").addEventListener("click", () => { currentModelId = null; render(); });
 $("pickBtn").addEventListener("click", () => $("fileInput").click());
 $("uploadCancel").addEventListener("click", closeUpload);
 $("uploadAllBtn").addEventListener("click", uploadAll);
@@ -1138,7 +1121,7 @@ $("search").addEventListener("focus", () => {
 });
 $("search").addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    $("search").value = ""; filterText = ""; hideSearchResults(); renderSidebar();
+    $("search").value = ""; filterText = ""; hideSearchResults(); renderHub();
   } else if (e.key === "Enter") {
     const first = $("searchResults").querySelector(".sr-model") ||
                   $("searchResults").querySelector(".sr-cat");
